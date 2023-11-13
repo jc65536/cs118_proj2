@@ -23,7 +23,8 @@ void *read_file(struct reader_args *args) {
         if (sendq->num_queued == SENDQ_CAPACITY)
             continue;
 
-        struct packet *packet = &sendq->buf[sendq->end];
+        size_t *packet_size = &sendq->buf[sendq->end].packet_size;
+        struct packet *packet = &sendq->buf[sendq->end].packet;
         size_t bytes_read = fread(packet->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
 
         if (bytes_read != MAX_PAYLOAD_SIZE) {
@@ -37,10 +38,10 @@ void *read_file(struct reader_args *args) {
             packet->flags = 0;
         }
 
-        printf("Seqnum: %d\n", seqnum);
+        printf("Read: %d\n", seqnum);
 
         packet->seqnum = seqnum;
-        packet->payload_size = bytes_read;
+        packet_size = HEADER_SIZE + bytes_read;
         seqnum += bytes_read;
 
         sendq->end = (sendq->end + 1) % SENDQ_CAPACITY;

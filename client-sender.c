@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <unistd.h>
 
 #include "client.h"
 
@@ -6,10 +7,8 @@ void *send_packets(struct sender_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
 
-    int send_sockfd;
-
     // Create a UDP socket for sending
-    send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    int send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (send_sockfd < 0) {
         perror("Could not create send socket");
         exit(1);
@@ -27,12 +26,15 @@ void *send_packets(struct sender_args *args) {
         exit(1);
     }
 
+    printf("Connected to proxy (send)\n");
+
     while (true) {
         if (sendq->send_next == sendq->end)
             continue;
 
-        struct packet *packet = &sendq->buf[sendq->send_next];
-        ssize_t bytes_sent = send(send_sockfd, packet, HEADER_SIZE + packet->payload_size, 0);
+        size_t packet_size = sendq->buf[sendq->send_next].packet_size;
+        struct packet *packet = &sendq->buf[sendq->send_next].packet;
+        ssize_t bytes_sent = send(send_sockfd, packet, packet_size, 0);
 
         if (bytes_sent == -1)
             perror("Error sending message");
@@ -44,6 +46,8 @@ void *send_packets(struct sender_args *args) {
         if (is_last(packet))
             break;
     }
+
+    printf("Sent last packet\n");
 
     return NULL;
 }

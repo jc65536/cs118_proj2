@@ -6,7 +6,7 @@
 #include "common.h"
 
 #define SENDQ_CAPACITY 256
-#define RETRANSQ_CAPACITY 128
+#define RETRANSQ_CAPACITY 256
 
 static inline void print_send(const struct packet *pkt, bool resend) {
     if (resend)
@@ -17,17 +17,20 @@ static inline void print_send(const struct packet *pkt, bool resend) {
 
 struct sendq {
     atomic_size_t num_queued;
-    size_t begin;
-    size_t end;
-    size_t send_next;
-    size_t cwnd;
-    struct packet *buf;
+    atomic_size_t begin;
+    atomic_size_t end;
+    atomic_size_t send_next;
+    atomic_size_t cwnd;
+    struct {
+        size_t packet_size;
+        struct packet packet;
+    } *buf;
 };
 
 struct retransq {
     atomic_size_t num_queued;
-    size_t begin;
-    size_t end;
+    atomic_size_t begin;
+    atomic_size_t end;
     uint32_t buf[RETRANSQ_CAPACITY];
 };
 
@@ -43,10 +46,15 @@ struct sender_args {
     struct retransq *retransq;
 };
 
+struct receiver_args {
+    struct sendq *sendq;
+    struct retransq *retransq;
+};
+
 void *read_file(struct reader_args *args);
 
 void *send_packets(struct sender_args *args);
 
-void *receive_acks(void *arg);
+void *receive_acks(struct receiver_args *args);
 
 #endif

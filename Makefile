@@ -11,7 +11,8 @@ server: server.o common.o
 
 client: client.o common.o \
 		client-reader.o \
-		client-sender.o
+		client-sender.o \
+		client-receiver.o
 
 clean:
 	rm -f server client output.txt project2.zip *.o
