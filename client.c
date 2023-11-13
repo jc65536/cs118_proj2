@@ -1,31 +1,22 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
-#include <time.h>
 
-#include "utils.h"
-
+#include "utils-client.h"
 
 int main(int argc, char *argv[]) {
     int listen_sockfd, send_sockfd;
-    struct sockaddr_in client_addr, server_addr_to, server_addr_from;
-    socklen_t addr_size = sizeof(server_addr_to);
-    struct timeval tv;
-    struct packet pkt;
-    struct packet ack_pkt;
-    char buffer[PAYLOAD_SIZE];
-    unsigned short seq_num = 0;
-    unsigned short ack_num = 0;
-    char last = 0;
-    char ack = 0;
 
     // read filename from command line argument
     if (argc != 2) {
         printf("Usage: ./client <filename>\n");
         return 1;
     }
+
     char *filename = argv[1];
 
     // Create a UDP socket for listening
@@ -43,21 +34,27 @@ int main(int argc, char *argv[]) {
     }
 
     // Configure the server address structure to which we will send data
-    memset(&server_addr_to, 0, sizeof(server_addr_to));
-    server_addr_to.sin_family = AF_INET;
-    server_addr_to.sin_port = htons(SERVER_PORT_TO);
-    server_addr_to.sin_addr.s_addr = inet_addr(SERVER_IP);
+    struct sockaddr_in server_addr_to = {
+        .sin_family = AF_INET,
+        .sin_port = htons(SERVER_PORT_TO),
+        .sin_addr.s_addr = inet_addr(SERVER_IP)};
 
     // Configure the client address structure
-    memset(&client_addr, 0, sizeof(client_addr));
-    client_addr.sin_family = AF_INET;
-    client_addr.sin_port = htons(CLIENT_PORT);
-    client_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    struct sockaddr_in client_addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(CLIENT_PORT),
+        .sin_addr.s_addr = htonl(INADDR_ANY)};
 
     // Bind the listen socket to the client address
-    if (bind(listen_sockfd, (struct sockaddr *)&client_addr, sizeof(client_addr)) < 0) {
+    if (bind(listen_sockfd, (struct sockaddr *) &client_addr, sizeof(client_addr)) == -1) {
         perror("Bind failed");
         close(listen_sockfd);
+        return 1;
+    }
+
+    if (connect(send_sockfd, (struct sockaddr *) &server_addr_to, sizeof(server_addr_to)) == -1) {
+        perror("Failed to connect to proxy");
+        close(send_sockfd);
         return 1;
     }
 
@@ -72,11 +69,30 @@ int main(int argc, char *argv[]) {
 
     // TODO: Read from file, and initiate reliable data transfer to the server
 
- 
-    
+    struct packet *packet = calloc(1, sizeof(struct packet) + MAX_PAYLOAD_SIZE);
+
+    do {
+        size_t bytes_read = fread(packet->payload, 1, MAX_PAYLOAD_SIZE, fp);
+
+        if (bytes_read != MAX_PAYLOAD_SIZE && feof(fp))
+            packet->flags = FLAG_FINAL;
+
+        ssize_t bytes_sent = send(send_sockfd, packet, sizeof(struct packet) + bytes_read, 0);
+
+        if (bytes_sent == -1)
+            perror("Error sending message");
+        else
+            print_send(packet, false);
+
+        packet->seqnum += bytes_read;
+
+        // Pause for 5 ms so server isn't overloaded
+        usleep(5000);
+    } while (!is_last(packet));
+
+    free(packet);
     fclose(fp);
     close(listen_sockfd);
     close(send_sockfd);
     return 0;
 }
-
