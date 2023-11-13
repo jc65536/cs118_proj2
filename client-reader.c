@@ -20,7 +20,7 @@ void *read_file(struct reader_args *args) {
     size_t seqnum = 0;
 
     while (!eof) {
-        if (queue->state == FULL)
+        if (queue->num_queued == SENDQ_CAPACITY)
             continue;
 
         struct packet *packet = queue->buf + queue->end;
@@ -42,23 +42,8 @@ void *read_file(struct reader_args *args) {
         packet->seqnum = seqnum;
         seqnum += bytes_read;
 
-        mtx_lock(&queue->mutex);
-        
-        queue->end = (queue->end + 1) % SENDQ_SIZE;
-
-        switch (queue->state) {
-        case EMPTY:
-            queue->state = NONEMPTY;
-            break;
-        case NONEMPTY:
-            if (queue->end == queue->begin)
-                queue->state = FULL;
-            break;
-        case FULL:  // Would not have gotten here
-            break;
-        }
-
-        mtx_unlock(&queue->mutex);
+        queue->end = (queue->end + 1) % SENDQ_CAPACITY;
+        queue->num_queued++;
     }
 
     printf("Finished reading file\n");

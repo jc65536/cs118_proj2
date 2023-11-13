@@ -2,11 +2,10 @@
 #define CLIENT_H
 
 #include <stdatomic.h>
-#include <threads.h>
 
 #include "common.h"
 
-#define SENDQ_SIZE 256
+#define SENDQ_CAPACITY 256
 
 static inline void print_send(const struct packet *pkt, bool resend) {
     if (resend)
@@ -15,11 +14,8 @@ static inline void print_send(const struct packet *pkt, bool resend) {
         printf("SEND %d %s\n", pkt->seqnum, is_last(pkt) ? "LAST" : "");
 }
 
-enum qstate { EMPTY, FULL, NONEMPTY };
-
 struct sendq {
-    mtx_t mutex;
-    _Atomic enum qstate state;
+    atomic_size_t num_queued;
     atomic_size_t begin;
     atomic_size_t end;
     atomic_size_t send_next;

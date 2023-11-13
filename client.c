@@ -11,9 +11,7 @@
 
 struct sendq make_sendq() {
     struct sendq q = {};
-    mtx_init(&q.mutex, mtx_plain);
-    q.state = EMPTY;
-    q.buf = calloc(SENDQ_SIZE, sizeof(struct packet));
+    q.buf = calloc(SENDQ_CAPACITY, sizeof(struct packet));
     return q;
 }
 
