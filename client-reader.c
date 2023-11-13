@@ -3,7 +3,7 @@
 #include "client.h"
 
 void *read_file(struct reader_args *args) {
-    struct sendq *queue = args->queue;
+    struct sendq *sendq = args->sendq;
     char *filename = args->filename;
 
     // Open file for reading
@@ -20,10 +20,10 @@ void *read_file(struct reader_args *args) {
     size_t seqnum = 0;
 
     while (!eof) {
-        if (queue->num_queued == SENDQ_CAPACITY)
+        if (sendq->num_queued == SENDQ_CAPACITY)
             continue;
 
-        struct packet *packet = queue->buf + queue->end;
+        struct packet *packet = &sendq->buf[sendq->end];
         size_t bytes_read = fread(packet->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
 
         if (bytes_read != MAX_PAYLOAD_SIZE) {
@@ -40,11 +40,13 @@ void *read_file(struct reader_args *args) {
         printf("Seqnum: %d\n", seqnum);
 
         packet->seqnum = seqnum;
+        packet->payload_size = bytes_read;
         seqnum += bytes_read;
 
-        queue->end = (queue->end + 1) % SENDQ_CAPACITY;
-        queue->num_queued++;
+        sendq->end = (sendq->end + 1) % SENDQ_CAPACITY;
+        sendq->num_queued++;
     }
 
     printf("Finished reading file\n");
+    return NULL;
 }

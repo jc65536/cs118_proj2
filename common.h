@@ -30,6 +30,8 @@ struct packet {
         uint8_t flags;
     };
     char payload[MAX_PAYLOAD_SIZE];
+    // Metadata, not part of packet
+    size_t payload_size;
 };
 
 extern const int HEADER_SIZE;

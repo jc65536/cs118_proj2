@@ -1,17 +1,17 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include "client.h"
 
 struct sendq make_sendq() {
     struct sendq q = {};
-    q.buf = calloc(SENDQ_CAPACITY, sizeof(struct packet));
+    q.buf = calloc(SENDQ_CAPACITY, sizeof(q.buf[0]));
     return q;
 }
 
@@ -66,12 +66,16 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO: Read from file, and initiate reliable data transfer to the server
-    struct sendq queue = make_sendq();
+    struct sendq sendq = make_sendq();
+    struct retransq retransq = {};
 
-    struct reader_args args1 = {.queue = &queue, .filename = filename};
+    struct reader_args reader_args = {.sendq = &sendq, .filename = filename};
     pthread_t reader_thread;
+    pthread_create(&reader_thread, NULL, read_file, &reader_args);
 
-    pthread_create(&reader_thread, NULL, read_file, &args1);
+    struct sender_args sender_args = {.sendq = &sendq, .retransq = &retransq};
+    pthread_t sender_thread;
+    pthread_create(&sender_thread, NULL, send_packets, &sender_args);
 
     // struct packet *packet = calloc(1, sizeof(struct packet));
 
@@ -98,6 +102,7 @@ int main(int argc, char *argv[]) {
     // fclose(fp);
 
     pthread_join(reader_thread, NULL);
+    pthread_join(sender_thread, NULL);
 
     close(listen_sockfd);
     close(send_sockfd);
