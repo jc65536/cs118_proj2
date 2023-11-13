@@ -5,8 +5,17 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <pthread.h>
 
-#include "utils-client.h"
+#include "client.h"
+
+struct sendq make_sendq() {
+    struct sendq q = {};
+    mtx_init(&q.mutex, mtx_plain);
+    q.state = EMPTY;
+    q.buf = calloc(SENDQ_SIZE, sizeof(struct packet));
+    return q;
+}
 
 int main(int argc, char *argv[]) {
     int listen_sockfd, send_sockfd;
@@ -58,40 +67,40 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open file for reading
-    FILE *fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        perror("Error opening file");
-        close(listen_sockfd);
-        close(send_sockfd);
-        return 1;
-    }
-
     // TODO: Read from file, and initiate reliable data transfer to the server
+    struct sendq queue = make_sendq();
 
-    struct packet *packet = calloc(1, sizeof(struct packet) + MAX_PAYLOAD_SIZE);
+    struct reader_args args1 = {.queue = &queue, .filename = filename};
+    pthread_t reader_thread;
 
-    do {
-        size_t bytes_read = fread(packet->payload, 1, MAX_PAYLOAD_SIZE, fp);
+    pthread_create(&reader_thread, NULL, read_file, &args1);
 
-        if (bytes_read != MAX_PAYLOAD_SIZE && feof(fp))
-            packet->flags = FLAG_FINAL;
+    // struct packet *packet = calloc(1, sizeof(struct packet));
 
-        ssize_t bytes_sent = send(send_sockfd, packet, sizeof(struct packet) + bytes_read, 0);
+    // do {
+    //     size_t bytes_read = fread(packet->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
 
-        if (bytes_sent == -1)
-            perror("Error sending message");
-        else
-            print_send(packet, false);
+    //     if (bytes_read != MAX_PAYLOAD_SIZE && feof(fp))
+    //         packet->flags = FLAG_FINAL;
 
-        packet->seqnum += bytes_read;
+    //     ssize_t bytes_sent = send(send_sockfd, packet, HEADER_SIZE + bytes_read, 0);
 
-        // Pause for 5 ms so server isn't overloaded
-        usleep(5000);
-    } while (!is_last(packet));
+    //     if (bytes_sent == -1)
+    //         perror("Error sending message");
+    //     else
+    //         print_send(packet, false);
 
-    free(packet);
-    fclose(fp);
+    //     packet->seqnum += bytes_read;
+
+    //     // Pause for 5 ms so server isn't overloaded
+    //     usleep(5000);
+    // } while (!is_last(packet));
+
+    // free(packet);
+    // fclose(fp);
+
+    pthread_join(reader_thread, NULL);
+
     close(listen_sockfd);
     close(send_sockfd);
     return 0;

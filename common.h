@@ -1,6 +1,7 @@
-#ifndef UTILS_COMMON_H
-#define UTILS_COMMON_H
+#ifndef COMMON_H
+#define COMMON_H
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,17 +19,21 @@
 #define TIMEOUT 2
 #define MAX_SEQUENCE 1024
 
+#define NUM_THREADS 4
+
 #define FLAG_FINAL 0b00000001
 
 struct packet {
-    uint32_t seqnum;
-    uint16_t recv_window;
-    uint8_t flags;
-    char payload[];
+    struct { // For padding reasons; otherwise HEADER_SIZE would be 7
+        uint32_t seqnum;
+        uint16_t recv_window;
+        uint8_t flags;
+    };
+    char payload[MAX_PAYLOAD_SIZE];
 };
 
-extern inline bool is_last(const struct packet *p) {
-    return p->flags & FLAG_FINAL;
-}
+extern const int HEADER_SIZE;
+
+bool is_last(const struct packet *p);
 
 #endif

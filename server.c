@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "utils-server.h"
+#include "server.h"
 
 int main() {
     int listen_sockfd, send_sockfd;
@@ -48,18 +48,18 @@ int main() {
 
     // TODO: Receive file from the client and save it as output.txt
 
-    struct packet *packet = calloc(1, sizeof(struct packet) + MAX_PAYLOAD_SIZE);
+    struct packet *packet = calloc(1, sizeof(struct packet));
 
     do {
-        ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet) + MAX_PAYLOAD_SIZE, 0);
+        ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
 
         if (bytes_recvd == -1)
             perror("Error receiving message");
         else
             print_recv(packet);
 
-        size_t payload_size = bytes_recvd - sizeof(struct packet);
-        size_t bytes_written = fwrite(packet->payload, 1, payload_size, fp);
+        size_t payload_size = bytes_recvd - HEADER_SIZE;
+        size_t bytes_written = fwrite(packet->payload, sizeof(char), payload_size, fp);
 
         if (bytes_written != payload_size)
             perror("Error writing output");
