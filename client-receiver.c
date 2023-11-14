@@ -40,7 +40,7 @@ void *receive_acks(struct receiver_args *args) {
         if (bytes_recvd == -1)
             perror("Error receiving message");
         else
-            print_recv(packet);
+            printf("ACK\n");
 
         size_t seq_diff = packet->seqnum - sendq->buf[sendq->begin].packet.seqnum;
         size_t forward_amt = (seq_diff - 1) / MAX_PAYLOAD_SIZE + 1; // Divide and round up
@@ -55,5 +55,6 @@ void *receive_acks(struct receiver_args *args) {
             size_t seqnum_count = payload_size / sizeof(uint32_t);
         }
     }
+
     return NULL;
 }

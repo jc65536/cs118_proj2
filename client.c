@@ -31,13 +31,13 @@ int main(int argc, char *argv[]) {
     pthread_t reader_thread, sender_thread, receiver_thread;
 
     struct reader_args reader_args = {.sendq = &sendq, .filename = filename};
-    pthread_create(&reader_thread, NULL, read_file, &reader_args);
+    pthread_create(&reader_thread, NULL, (voidfn) read_file, &reader_args);
 
     struct sender_args sender_args = {.sendq = &sendq, .retransq = &retransq};
-    pthread_create(&sender_thread, NULL, send_packets, &sender_args);
+    pthread_create(&sender_thread, NULL, (voidfn) send_packets, &sender_args);
 
     struct receiver_args receiver_args = {.sendq = &sendq, .retransq = &retransq};
-    pthread_create(&receiver_thread, NULL, receive_acks, &receiver_args);
+    pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
 
     pthread_join(reader_thread, NULL);
     pthread_join(sender_thread, NULL);

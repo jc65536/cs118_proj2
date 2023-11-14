@@ -4,7 +4,7 @@
 
 void *read_file(struct reader_args *args) {
     struct sendq *sendq = args->sendq;
-    char *filename = args->filename;
+    const char *filename = args->filename;
 
     // Open file for reading
     FILE *fp = fopen(filename, "rb");
@@ -16,7 +16,6 @@ void *read_file(struct reader_args *args) {
     printf("Opened file %s\n", filename);
 
     bool eof = false;
-    bool set_nonempty = false;
     size_t seqnum = 0;
 
     while (!eof) {
@@ -38,10 +37,10 @@ void *read_file(struct reader_args *args) {
             packet->flags = 0;
         }
 
-        printf("Read: %d\n", seqnum);
+        printf("Read: %ld\n", seqnum);
 
         packet->seqnum = seqnum;
-        packet_size = HEADER_SIZE + bytes_read;
+        *packet_size = HEADER_SIZE + bytes_read;
         seqnum += bytes_read;
 
         sendq->end = (sendq->end + 1) % SENDQ_CAPACITY;

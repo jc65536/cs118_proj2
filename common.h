@@ -23,6 +23,8 @@
 
 #define FLAG_FINAL 0b00000001
 
+typedef void *(*voidfn)(void *);
+
 struct packet {
     struct { // For padding reasons; otherwise HEADER_SIZE would be 7
         uint32_t seqnum;

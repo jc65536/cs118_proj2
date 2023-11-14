@@ -7,7 +7,8 @@ default: build
 
 build: server client
 
-server: server.o common.o
+server: server.o common.o \
+		server-receiver.o
 
 client: client.o common.o \
 		client-reader.o \

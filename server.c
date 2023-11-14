@@ -4,8 +4,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "server.h"
+
+struct recvq make_recvq() {
+    struct recvq q = {};
+    q.rwnd = RECVQ_CAPACITY;
+    q.buf = calloc(RECVQ_CAPACITY, sizeof(q.buf[0]));
+    return q;
+}
+
+struct ackq make_ackq() {
+    struct ackq q = {};
+    q.buf = calloc(ACKQ_CAPACITY, sizeof(q.buf[0]));
+    return q;
+}
 
 int main() {
     int listen_sockfd, send_sockfd;
@@ -17,36 +31,26 @@ int main() {
         return 1;
     }
 
-    // Create a UDP socket for listening
-    listen_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (listen_sockfd < 0) {
-        perror("Could not create listen socket");
-        return 1;
-    }
-
-    // Configure the server address structure
-    struct sockaddr_in server_addr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(SERVER_PORT),
-        .sin_addr.s_addr = htonl(INADDR_ANY)};
-
     // Configure the client address structure to which we will send ACKs
     struct sockaddr_in client_addr_to = {
         .sin_family = AF_INET,
         .sin_addr.s_addr = inet_addr(LOCAL_HOST),
         .sin_port = htons(CLIENT_PORT_TO)};
 
-    // Bind the listen socket to the server address
-    if (bind(listen_sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-        perror("Bind failed");
-        close(listen_sockfd);
-        return 1;
-    }
-
     // Open the target file for writing (always write to output.txt)
     FILE *fp = fopen("output.txt", "wb");
 
     // TODO: Receive file from the client and save it as output.txt
+
+    struct recvq recvq = make_recvq();
+    struct ackq ackq = make_ackq();
+
+    pthread_t receiver_thread;
+
+    struct receiver_args receiver_args = {.recvq = &recvq, .ackq = &ackq};
+    pthread_create(&receiver_thread, NULL, (voidfn) receive_packets, &receiver_args);
+
+    pthread_join(receiver_thread, NULL);
 
     struct packet *packet = calloc(1, sizeof(struct packet));
 
