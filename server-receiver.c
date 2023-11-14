@@ -3,36 +3,43 @@
 
 #include "server.h"
 
-void queue_ack(struct ackq *q, size_t acknum, uint16_t rwnd) {
+void queue_ack(struct ackq *q, size_t acknum, struct recvq *recvq) {
     if (q->num_queued == ACKQ_CAPACITY) {
         printf("ACK queue full\n");
         return;
     }
 
     q->buf[q->end].packet_size = HEADER_SIZE;
-    q->buf[q->end].packet.seqnum = acknum;
-    q->buf[q->end].packet.rwnd = rwnd;
+
+    struct packet *packet = &q->buf[q->end].packet;
+
+    packet->seqnum = acknum;
+    packet->rwnd = recvq->rwnd;
 
     q->end = (q->end + 1) % ACKQ_CAPACITY;
     q->num_queued++;
+
+    debug_ackq("ACK", packet, q);
 }
 
-void queue_nack(struct ackq *q, size_t acknum, uint16_t rwnd,
-                struct recvq_slot *ack_next, struct recvq_slot *end) {
+void queue_nack(struct ackq *q, size_t acknum, struct recvq *recvq) {
     if (q->num_queued == ACKQ_CAPACITY) {
         printf("ACK queue full\n");
         return;
     }
 
     q->buf[q->end].packet_size = 0;
-    q->buf[q->end].packet.seqnum = acknum;
-    q->buf[q->end].packet.rwnd = rwnd;
 
-    uint32_t *write_dest = (uint32_t *) q->buf[q->end].packet.payload;
+    struct packet *packet = &q->buf[q->end].packet;
+
+    packet->seqnum = acknum;
+    packet->rwnd = recvq->rwnd;
+
+    uint32_t *write_dest = (uint32_t *) packet->payload;
     size_t segnum = acknum;
-    for (struct recvq_slot *i = ack_next; i != end; i++) {
-        if (i->filled) {
-            segnum += i->payload_size;
+    for (size_t i = recvq->ack_next; i != recvq->end; i = (i + 1) % RECVQ_CAPACITY) {
+        if (recvq->buf[i].filled) {
+            segnum += recvq->buf[i].payload_size;
         } else {
             *write_dest = segnum;
             segnum += MAX_PAYLOAD_SIZE;
@@ -43,6 +50,8 @@ void queue_nack(struct ackq *q, size_t acknum, uint16_t rwnd,
 
     q->end = (q->end + 1) % ACKQ_CAPACITY;
     q->num_queued++;
+
+    debug_ackq("NACK", packet, q);
 }
 
 void *receive_packets(struct receiver_args *args) {
@@ -80,11 +89,8 @@ void *receive_packets(struct receiver_args *args) {
 
         if (bytes_recvd == -1)
             perror("Error receiving message");
-        else
-            print_recv(packet);
 
         if (packet->seqnum == acknum) {
-            printf("Sequential receive\n");
             memcpy(&recvq->buf[recvq->ack_next].packet, packet, sizeof(struct packet));
             size_t payload_size = bytes_recvd - HEADER_SIZE;
             recvq->buf[recvq->ack_next].payload_size = payload_size;
@@ -105,27 +111,31 @@ void *receive_packets(struct receiver_args *args) {
                 recvq->ack_next = i;
             }
 
-            queue_ack(ackq, acknum, recvq->rwnd);
+            debug_recvq("Seq", packet, recvq);
 
+            queue_ack(ackq, acknum, recvq);
         } else if (acknum < packet->seqnum && packet->seqnum < endnum) {
-            printf("Retransmit\n");
             size_t packet_index = (recvq->ack_next + (packet->seqnum - acknum) / MAX_PAYLOAD_SIZE) % RECVQ_CAPACITY;
             memcpy(&recvq->buf[packet_index].packet, packet, sizeof(struct packet));
             recvq->buf[packet_index].payload_size = bytes_recvd - HEADER_SIZE;
             recvq->buf[packet_index].filled = true;
+
+            debug_recvq("Ret", packet, recvq);
         } else if (endnum <= packet->seqnum && packet->seqnum < endnum + recvq->rwnd * MAX_PAYLOAD_SIZE) {
-            printf("Out of order receive\n");
-            size_t packet_index = (recvq->end + (packet->seqnum - endnum) / MAX_PAYLOAD_SIZE) % RECVQ_CAPACITY;
+            size_t rwnd_shrink_count = (packet->seqnum - endnum) / MAX_PAYLOAD_SIZE;
+            size_t packet_index = (recvq->end + rwnd_shrink_count) % RECVQ_CAPACITY;
             memcpy(&recvq->buf[packet_index].packet, packet, sizeof(struct packet));
             size_t payload_size = bytes_recvd - HEADER_SIZE;
             recvq->buf[packet_index].payload_size = payload_size;
             recvq->buf[packet_index].filled = true;
 
             endnum = packet->seqnum + payload_size;
-            recvq->rwnd -= packet_index + 1 - recvq->end;
+            recvq->rwnd -= rwnd_shrink_count;
             recvq->end = packet_index + 1;
 
-            queue_nack(ackq, acknum, recvq->rwnd, &recvq->buf[recvq->ack_next], &recvq->buf[recvq->end]);
+            debug_recvq("Ooo", packet, recvq);
+
+            queue_nack(ackq, acknum, recvq);
         } else {
             // Theoretically shouldn't happen if client respects rwnd
         }

@@ -23,6 +23,8 @@ void *write_file(struct writer_args *args) {
         recvq->begin = (recvq->begin + 1) % RECVQ_CAPACITY;
         recvq->rwnd++;
 
+        debug_recvq("Write", packet, recvq);
+
         if (is_final(packet))
             break;
     }

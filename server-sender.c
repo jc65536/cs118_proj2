@@ -36,10 +36,10 @@ void *send_acks(struct sender_args *args) {
 
         if (bytes_sent == -1)
             perror("Error sending message");
-        else
-            printf("Sent ACK\n");
 
         ackq->begin = (ackq->begin + 1) % ACKQ_CAPACITY;
         ackq->num_queued--;
+
+        debug_ackq("Sent", packet, ackq);
     }
 }
