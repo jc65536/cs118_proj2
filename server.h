@@ -9,7 +9,7 @@
 #define ACKQ_CAPACITY 256
 
 static inline void print_recv(struct packet *pkt) {
-    printf("RECV %d %s\n", pkt->seqnum, is_last(pkt) ? "LAST" : "");
+    printf("RECV %d %s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
 }
 
 struct recvq {
@@ -41,6 +41,18 @@ struct receiver_args {
     struct ackq *ackq;
 };
 
+struct writer_args {
+    struct recvq *recvq;
+};
+
+struct sender_args {
+    struct ackq *ackq;
+};
+
 void *receive_packets(struct receiver_args *args);
+
+void *write_file(struct writer_args *args);
+
+void *send_acks(struct sender_args *args);
 
 #endif

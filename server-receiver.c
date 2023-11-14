@@ -11,7 +11,7 @@ void queue_ack(struct ackq *q, size_t acknum, uint16_t rwnd) {
 
     q->buf[q->end].packet_size = HEADER_SIZE;
     q->buf[q->end].packet.seqnum = acknum;
-    q->buf[q->end].packet.recv_window = rwnd;
+    q->buf[q->end].packet.rwnd = rwnd;
 
     q->end = (q->end + 1) % ACKQ_CAPACITY;
     q->num_queued++;
@@ -26,7 +26,7 @@ void queue_nack(struct ackq *q, size_t acknum, uint16_t rwnd,
 
     q->buf[q->end].packet_size = 0;
     q->buf[q->end].packet.seqnum = acknum;
-    q->buf[q->end].packet.recv_window = rwnd;
+    q->buf[q->end].packet.rwnd = rwnd;
 
     uint32_t *write_dest = (uint32_t *) q->buf[q->end].packet.payload;
     size_t segnum = acknum;

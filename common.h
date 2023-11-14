@@ -28,7 +28,7 @@ typedef void *(*voidfn)(void *);
 struct packet {
     struct { // For padding reasons; otherwise HEADER_SIZE would be 7
         uint32_t seqnum;
-        uint16_t recv_window;
+        uint16_t rwnd;
         uint8_t flags;
     };
     char payload[MAX_PAYLOAD_SIZE];
@@ -36,6 +36,6 @@ struct packet {
 
 extern const int HEADER_SIZE;
 
-bool is_last(const struct packet *p);
+bool is_final(const struct packet *p);
 
 #endif

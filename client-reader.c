@@ -16,11 +16,18 @@ void *read_file(struct reader_args *args) {
     printf("Opened file %s\n", filename);
 
     bool eof = false;
-    size_t seqnum = 0;
+    uint32_t seqnum = 0;
+
+    bool _f = true;
 
     while (!eof) {
-        if (sendq->num_queued == SENDQ_CAPACITY)
+        if (sendq->num_queued == SENDQ_CAPACITY) {
+            if (_f)
+                printf("Send queue full\n");
+            _f = false;
             continue;
+        }
+        _f = true;
 
         size_t *packet_size = &sendq->buf[sendq->end].packet_size;
         struct packet *packet = &sendq->buf[sendq->end].packet;
@@ -37,14 +44,14 @@ void *read_file(struct reader_args *args) {
             packet->flags = 0;
         }
 
-        printf("Read: %ld\n", seqnum);
-
         packet->seqnum = seqnum;
         *packet_size = HEADER_SIZE + bytes_read;
         seqnum += bytes_read;
 
         sendq->end = (sendq->end + 1) % SENDQ_CAPACITY;
         sendq->num_queued++;
+
+        printf("Read\tseq %7d\tqueued %3ld\n", packet->seqnum, sendq->num_queued);
     }
 
     printf("Finished reading file\n");

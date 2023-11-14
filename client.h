@@ -10,9 +10,9 @@
 
 static inline void print_send(const struct packet *pkt, bool resend) {
     if (resend)
-        printf("RESEND %d %s\n", pkt->seqnum, is_last(pkt) ? "LAST" : "");
+        printf("Resend\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
     else
-        printf("SEND %d %s\n", pkt->seqnum, is_last(pkt) ? "LAST" : "");
+        printf("Send\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
 }
 
 struct sendq {
