@@ -21,7 +21,7 @@ void *read_file(struct reader_args *args) {
     bool _f = true;
 
     while (!eof) {
-        if (sendq->num_queued == SENDQ_CAPACITY) {
+        if (sendq->num_queued >= SENDQ_CAPACITY) {
             if (_f)
                 printf("Send queue full\n");
             _f = false;

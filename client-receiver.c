@@ -50,7 +50,7 @@ void *receive_acks(struct receiver_args *args) {
 
         size_t seq_diff = packet->seqnum - sendq->buf[sendq->begin].packet.seqnum;
         size_t forward_amt = (seq_diff - 1) / MAX_PAYLOAD_SIZE + 1; // Divide and round up
-        sendq->begin += forward_amt;
+        sendq->begin = (sendq->begin + forward_amt) % SENDQ_CAPACITY;
         sendq->num_queued -= forward_amt;
 
         size_t payload_size = bytes_recvd - HEADER_SIZE;

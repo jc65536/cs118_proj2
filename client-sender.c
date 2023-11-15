@@ -32,7 +32,7 @@ void *send_packets(struct sender_args *args) {
         if (retransq->num_queued > 0) {
             size_t seqnum = retransq->buf[retransq->begin];
 
-            size_t packet_index = sendq->begin + (seqnum - sendq->buf[sendq->begin].packet.seqnum) / MAX_PAYLOAD_SIZE;
+            size_t packet_index = (sendq->begin + (seqnum - sendq->buf[sendq->begin].packet.seqnum) / MAX_PAYLOAD_SIZE) % SENDQ_CAPACITY;
 
             size_t packet_size = sendq->buf[packet_index].packet_size;
             struct packet *packet = &sendq->buf[packet_index].packet;
