@@ -40,5 +40,5 @@ int main() {
 
     pthread_join(receiver_thread, NULL);
     pthread_join(writer_thread, NULL);
-    pthread_join(sender_thread, NULL);
+    // pthread_join(sender_thread, NULL);
 }

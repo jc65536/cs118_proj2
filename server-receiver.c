@@ -139,7 +139,12 @@ void *receive_packets(struct receiver_args *args) {
         } else {
             // Theoretically shouldn't happen if client respects rwnd
         }
+
+        if (is_final(packet))
+            break;
     }
+
+    printf("Received last packet\n");
 
     return NULL;
 }

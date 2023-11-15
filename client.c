@@ -17,12 +17,12 @@ struct sendq make_sendq() {
 
 int main(int argc, char *argv[]) {
     // read filename from command line argument
-    if (argc != 2) {
-        printf("Usage: ./client <filename>\n");
-        return 1;
-    }
+    // if (argc != 2) {
+    //     printf("Usage: ./client <filename>\n");
+    //     return 1;
+    // }
 
-    char *filename = argv[1];
+    char *filename = "input2.txt"; //argv[1];
 
     // TODO: Read from file, and initiate reliable data transfer to the server
     struct sendq sendq = make_sendq();
@@ -40,6 +40,6 @@ int main(int argc, char *argv[]) {
     pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
 
     pthread_join(reader_thread, NULL);
-    pthread_join(sender_thread, NULL);
+    // pthread_join(sender_thread, NULL);
     pthread_join(receiver_thread, NULL);
 }

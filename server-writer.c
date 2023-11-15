@@ -29,6 +29,8 @@ void *write_file(struct writer_args *args) {
             break;
     }
 
+    printf("Wrote last packet\n");
+
     fclose(fp);
     return NULL;
 }
