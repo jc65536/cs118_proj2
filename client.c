@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
     //     return 1;
     // }
 
-    char *filename = "input2.txt"; //argv[1];
+    char *filename = "input.txt"; //argv[1];
 
     // TODO: Read from file, and initiate reliable data transfer to the server
     struct sendq sendq = make_sendq();

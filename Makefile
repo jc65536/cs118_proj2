@@ -8,6 +8,7 @@ default: build
 build: server client
 
 server: server.o common.o \
+		server-queues.o \
 		server-receiver.o \
 		server-writer.o \
 		server-sender.o

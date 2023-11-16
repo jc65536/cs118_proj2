@@ -8,27 +8,23 @@
 #define RECVQ_CAPACITY 256
 #define ACKQ_CAPACITY 256
 
-struct recvq {
-    atomic_size_t rwnd;
-    atomic_size_t begin;
-    atomic_size_t end;
-    atomic_size_t ack_next;
-    struct {
-        size_t payload_size;
-        bool filled;
-        struct packet packet;
-    } *buf;
+struct recvq;
+
+enum recv_type {
+    SEQ,
+    RET,
+    OOO,
+    ERR
 };
 
-struct ackq {
-    atomic_size_t num_queued;
-    atomic_size_t begin;
-    atomic_size_t end;
-    struct {
-        size_t packet_size;
-        struct packet packet;
-    } *buf;
-};
+size_t recvq_get_acknum(struct recvq *q);
+enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size);
+void recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
+
+struct ackq;
+
+bool ackq_push(struct ackq *q, size_t acknum, struct recvq *recvq, bool nack);
+void ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
 
 // Thread routines
 
@@ -46,21 +42,12 @@ struct sender_args {
 };
 
 void *receive_packets(struct receiver_args *args);
-
 void *write_file(struct writer_args *args);
-
 void *send_acks(struct sender_args *args);
 
 // Debug utils
 
-static void debug_recvq(char *str, struct packet *p, struct recvq *q) {
-    printf("%s\tseq %7d\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_next %3ld\n",
-           str, p->seqnum, q->rwnd, q->begin, q->end, q->ack_next);
-}
-
-static void debug_ackq(char *str, struct packet *p, struct ackq *q) {
-    printf("%s\tseq %7d\tqueued %3ld\tbegin %3ld\tend %3ld\n",
-           str, p->seqnum, q->num_queued, q->begin, q->end);
-}
+void debug_recvq(char *str, struct packet *p, struct recvq *q);
+void debug_ackq(char *str, struct packet *p, struct ackq *q);
 
 #endif

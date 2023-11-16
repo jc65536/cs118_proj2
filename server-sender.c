@@ -3,11 +3,27 @@
 
 #include "server.h"
 
+static bool sent_final;
+static int send_sockfd;
+
+void send_one(const struct packet *p, size_t packet_size) {
+    if (!p)
+        return;
+
+    if (is_final(p))
+        sent_final = true;
+
+    ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
+
+    if (bytes_sent == -1)
+        printf("Error sending ACK\n");
+}
+
 void *send_acks(struct sender_args *args) {
     struct ackq *ackq = args->ackq;
 
     // Create a UDP socket for sending
-    int send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (send_sockfd < 0) {
         perror("Could not create send socket");
         exit(1);
@@ -25,21 +41,11 @@ void *send_acks(struct sender_args *args) {
         exit(1);
     }
 
-    while (true) {
-        if (ackq->num_queued == 0)
-            continue;
+    sent_final = false;
+    while (!sent_final)
+        ackq_pop(ackq, send_one);
 
-        size_t packet_size = ackq->buf[ackq->begin].packet_size;
-        struct packet *packet = &ackq->buf[ackq->begin].packet;
-
-        ssize_t bytes_sent = send(send_sockfd, packet, packet_size, 0);
-
-        if (bytes_sent == -1)
-            perror("Error sending message");
-
-        ackq->begin = (ackq->begin + 1) % ACKQ_CAPACITY;
-        ackq->num_queued--;
-
-        debug_ackq("Sent", packet, ackq);
-    }
+    printf("Wrote last packet\n");
+    close(send_sockfd);
+    return NULL;
 }
