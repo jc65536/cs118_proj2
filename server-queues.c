@@ -12,6 +12,13 @@ struct recvq {
     } *buf;
 };
 
+struct recvq *recvq_new() {
+    struct recvq *q = calloc(1, sizeof(struct recvq));
+    q->rwnd = RECVQ_CAPACITY;
+    q->buf = calloc(RECVQ_CAPACITY, sizeof(q->buf[0]));
+    return q;
+}
+
 const struct recv_slot *recvq_get_slot(struct recvq *q, size_t i) {
     return &q->buf[i % RECVQ_CAPACITY];
 }
@@ -29,7 +36,7 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < q->ack_next || q->end + q->rwnd <= packet_index) {
-        printf("Packet index %d outside of receive window\n", packet_index);
+        printf("Packet index %ld outside of receive window\n", packet_index);
         return ERR;
     }
 
@@ -40,7 +47,7 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
         return ERR;
     }
 
-    memcpy(&slot->packet, p, sizeof(p));
+    memcpy(&slot->packet, p, sizeof(*p));
     slot->payload_size = payload_size;
     slot->filled = true;
 
@@ -81,7 +88,7 @@ void recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t)) {
     q->begin++;
     q->rwnd++;
 
-    debug_ackq("Sent", &slot->packet, q);
+    debug_recvq("Sent", &slot->packet, q);
 }
 
 struct ackq {
@@ -93,6 +100,12 @@ struct ackq {
         struct packet packet;
     } *buf;
 };
+
+struct ackq *ackq_new() {
+    struct ackq *q = calloc(1, sizeof(struct ackq));
+    q->buf = calloc(ACKQ_CAPACITY, sizeof(q->buf[0]));
+    return q;
+}
 
 bool ackq_push(struct ackq *q, size_t acknum, struct recvq *recvq, bool nack) {
     if (q->num_queued == ACKQ_CAPACITY) {
@@ -147,12 +160,12 @@ void ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
 
 // Debug
 
-void debug_recvq(char *str, struct packet *p, struct recvq *q) {
+void debug_recvq(char *str, const struct packet *p, const struct recvq *q) {
     printf("%s\tseq %7d\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_next %3ld\n",
            str, p->seqnum, q->rwnd, q->begin, q->end, q->ack_next);
 }
 
-void debug_ackq(char *str, struct packet *p, struct ackq *q) {
+void debug_ackq(char *str, const struct packet *p, const struct ackq *q) {
     printf("%s\tseq %7d\tqueued %3ld\tbegin %3ld\tend %3ld\n",
            str, p->seqnum, q->num_queued, q->begin, q->end);
 }

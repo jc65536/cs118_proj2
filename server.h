@@ -17,12 +17,14 @@ enum recv_type {
     ERR
 };
 
+struct recvq *recvq_new();
 size_t recvq_get_acknum(struct recvq *q);
 enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size);
 void recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 
 struct ackq;
 
+struct ackq *ackq_new();
 bool ackq_push(struct ackq *q, size_t acknum, struct recvq *recvq, bool nack);
 void ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
 
@@ -47,7 +49,7 @@ void *send_acks(struct sender_args *args);
 
 // Debug utils
 
-void debug_recvq(char *str, struct packet *p, struct recvq *q);
-void debug_ackq(char *str, struct packet *p, struct ackq *q);
+void debug_recvq(char *str, const struct packet *p, const struct recvq *q);
+void debug_ackq(char *str, const struct packet *p, const struct ackq *q);
 
 #endif
