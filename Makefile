@@ -14,6 +14,7 @@ server: server.o common.o \
 		server-sender.o
 
 client: client.o common.o \
+		client-queues.o \
 		client-reader.o \
 		client-sender.o \
 		client-receiver.o

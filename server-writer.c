@@ -21,7 +21,7 @@ void *write_file(struct writer_args *args) {
     struct recvq *recvq = args->recvq;
 
     // Open the target file for writing (always write to output.txt)
-    FILE *fp = fopen("output.txt", "wb");
+    fp = fopen("output.txt", "wb");
 
     wrote_final = false;
     while (!wrote_final)

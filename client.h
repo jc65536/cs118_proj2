@@ -15,24 +15,19 @@ static inline void print_send(const struct packet *pkt, bool resend) {
         printf("Send\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
 }
 
-struct sendq {
-    atomic_size_t num_queued;
-    atomic_size_t begin;
-    atomic_size_t end;
-    atomic_size_t send_next;
-    atomic_size_t cwnd;
-    struct {
-        size_t packet_size;
-        struct packet packet;
-    } *buf;
-};
+struct sendq;
 
-struct retransq {
-    atomic_size_t num_queued;
-    atomic_size_t begin;
-    atomic_size_t end;
-    uint32_t buf[RETRANSQ_CAPACITY];
-};
+struct sendq *sendq_new();
+bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *));
+void sendq_pop(struct sendq *q, uint32_t acknum);
+bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, size_t));
+
+struct retransq;
+
+struct retransq *retransq_new();
+size_t retransq_push(struct retransq *q, uint32_t *seqnums, size_t num_retrans);
+bool retransq_pop(struct retransq *q, const struct sendq *sendq,
+                  void (*cont)(const struct packet *, size_t));
 
 // Thread routines
 
@@ -52,9 +47,12 @@ struct receiver_args {
 };
 
 void *read_file(struct reader_args *args);
-
 void *send_packets(struct sender_args *args);
-
 void *receive_acks(struct receiver_args *args);
+
+// Debug
+
+void debug_sendq(char *str, const struct sendq *q);
+void debug_retransq(char *str, const struct retransq *q);
 
 #endif

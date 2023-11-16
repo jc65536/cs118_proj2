@@ -3,12 +3,21 @@
 
 #include "client.h"
 
+static int send_sockfd;
+
+void send_one(const struct packet *p, size_t packet_size) {
+    ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
+
+    if (bytes_sent == -1)
+        perror("Error sending message");
+}
+
 void *send_packets(struct sender_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
 
     // Create a UDP socket for sending
-    int send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (send_sockfd < 0) {
         perror("Could not create send socket");
         exit(1);
@@ -29,38 +38,8 @@ void *send_packets(struct sender_args *args) {
     printf("Connected to proxy (send)\n");
 
     while (true) {
-        if (retransq->num_queued > 0) {
-            size_t seqnum = retransq->buf[retransq->begin];
-
-            size_t packet_index = (sendq->begin + (seqnum - sendq->buf[sendq->begin].packet.seqnum) / MAX_PAYLOAD_SIZE) % SENDQ_CAPACITY;
-
-            size_t packet_size = sendq->buf[packet_index].packet_size;
-            struct packet *packet = &sendq->buf[packet_index].packet;
-
-            ssize_t bytes_sent = send(send_sockfd, packet, packet_size, 0);
-
-            if (bytes_sent == -1)
-                perror("Error sending message");
-            else
-                print_send(packet, true);
-
-            retransq->begin = (retransq->begin + 1) % RETRANSQ_CAPACITY;
-            retransq->num_queued--;
-        } else if (sendq->send_next != sendq->end) {
-            size_t packet_size = sendq->buf[sendq->send_next].packet_size;
-            struct packet *packet = &sendq->buf[sendq->send_next].packet;
-            ssize_t bytes_sent = send(send_sockfd, packet, packet_size, 0);
-
-            if (bytes_sent == -1)
-                perror("Error sending message");
-            else
-                print_send(packet, false);
-
-            sendq->send_next = (sendq->send_next + 1) % SENDQ_CAPACITY;
-
-            if (is_final(packet))
-                break;
-        }
+        if (!retransq_pop(retransq, sendq, send_one))
+            sendq_consume_next(sendq, send_one);
     }
 
     printf("Sent last packet\n");

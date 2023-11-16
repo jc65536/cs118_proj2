@@ -3,17 +3,6 @@
 
 #include "client.h"
 
-void queue_rt(struct retransq *q, size_t seqnum) {
-    if (q->num_queued == RETRANSQ_CAPACITY) {
-        printf("Retransmit queue full\n");
-        return;
-    }
-
-    q->buf[q->end] = seqnum;
-    q->end = (q->end + 1) % RETRANSQ_CAPACITY;
-    q->num_queued++;
-}
-
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
@@ -48,23 +37,17 @@ void *receive_acks(struct receiver_args *args) {
         if (bytes_recvd == -1)
             perror("Error receiving message");
 
-        size_t seq_diff = packet->seqnum - sendq->buf[sendq->begin].packet.seqnum;
-        size_t forward_amt = (seq_diff - 1) / MAX_PAYLOAD_SIZE + 1; // Divide and round up
-        sendq->begin = (sendq->begin + forward_amt) % SENDQ_CAPACITY;
-        sendq->num_queued -= forward_amt;
+        sendq_pop(sendq, packet->seqnum);
 
         size_t payload_size = bytes_recvd - HEADER_SIZE;
 
-        if (payload_size == 0) {
-            printf("ACK\tseq %7d\trwnd %3d\tqueued %3ld\n", packet->seqnum, packet->rwnd, sendq->num_queued);
-        } else {
+        if (payload_size > 0) {
             // Negative ACK
             size_t seqnum_count = payload_size / sizeof(uint32_t);
-            uint32_t *lost_seqnums = (uint32_t *) packet->payload;
+            uint32_t *seqnums = (uint32_t *) packet->payload;
 
-            for (size_t i = 0; i < seqnum_count; i++)
-                queue_rt(retransq, lost_seqnums[i]);
-            
+            retransq_push(retransq, seqnums, seqnum_count);
+
             printf("NACK\tseq %7d\tdropped %3ld\n", packet->seqnum, seqnum_count);
         }
     }

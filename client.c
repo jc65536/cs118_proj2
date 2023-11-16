@@ -9,12 +9,6 @@
 
 #include "client.h"
 
-struct sendq make_sendq() {
-    struct sendq q = {};
-    q.buf = calloc(SENDQ_CAPACITY, sizeof(q.buf[0]));
-    return q;
-}
-
 int main(int argc, char *argv[]) {
     // read filename from command line argument
     // if (argc != 2) {
@@ -22,21 +16,21 @@ int main(int argc, char *argv[]) {
     //     return 1;
     // }
 
-    char *filename = "input.txt"; //argv[1];
+    char *filename = "input.txt"; // argv[1];
 
     // TODO: Read from file, and initiate reliable data transfer to the server
-    struct sendq sendq = make_sendq();
-    struct retransq retransq = {};
+    struct sendq *sendq = sendq_new();
+    struct retransq *retransq = retransq_new();
 
     pthread_t reader_thread, sender_thread, receiver_thread;
 
-    struct reader_args reader_args = {.sendq = &sendq, .filename = filename};
+    struct reader_args reader_args = {.sendq = sendq, .filename = filename};
     pthread_create(&reader_thread, NULL, (voidfn) read_file, &reader_args);
 
-    struct sender_args sender_args = {.sendq = &sendq, .retransq = &retransq};
+    struct sender_args sender_args = {.sendq = sendq, .retransq = retransq};
     pthread_create(&sender_thread, NULL, (voidfn) send_packets, &sender_args);
 
-    struct receiver_args receiver_args = {.sendq = &sendq, .retransq = &retransq};
+    struct receiver_args receiver_args = {.sendq = sendq, .retransq = retransq};
     pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
 
     pthread_join(reader_thread, NULL);
