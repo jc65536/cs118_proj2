@@ -21,7 +21,8 @@ enum recv_type {
     SEQ,
     RET,
     OOO,
-    ERR
+    ERR,
+    END
 };
 
 struct recvbuf *recvbuf_new();

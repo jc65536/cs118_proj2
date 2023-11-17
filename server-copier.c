@@ -11,11 +11,15 @@ void copy_one(const struct packet *p, size_t packet_size) {
     enum recv_type status = recvbuf_write(recvbuf, p, payload_size);
 
     switch (status) {
+    case END:
+        // We can now terminate the connection
     case SEQ:
         ackq_push(ackq, recvbuf, false);
         break;
+
     case RET:
         break;
+
     case OOO:
     case ERR:
         ackq_push(ackq, recvbuf, true);

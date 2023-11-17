@@ -90,24 +90,33 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
     slot->filled = true;
 
     if (packet_index == b->ack_index) {
+        enum recv_type ret = SEQ;
+
         if (b->ack_index == b->end) {
             b->ack_index++;
             b->end++;
             b->acknum += payload_size;
             b->rwnd--;
+
+            if (is_final(p))
+                ret = END;
         } else {
             size_t i = b->ack_index;
             uint32_t new_acknum = b->acknum;
             const struct recv_slot *next_slot;
             while ((next_slot = recvbuf_get_slot(b, i))->filled) {
                 new_acknum += next_slot->payload_size;
+
+                if (is_final(&slot->packet))
+                    ret = END;
+
                 i++;
             }
             b->ack_index = i;
             b->acknum = new_acknum;
         }
         debug_recvq("Seq", b);
-        return SEQ;
+        return ret;
     } else if (packet_index < b->end) {
         debug_recvq("Ret", b);
         return RET;
@@ -168,7 +177,9 @@ bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf, bool nack) {
     if (nack) {
         uint32_t *write_ptr = (uint32_t *) slot->packet.payload;
         size_t segnum = recvbuf->acknum;
-        for (size_t i = recvbuf->ack_index; i < recvbuf->end && slot->packet_size + sizeof(*write_ptr) <= MAX_PAYLOAD_SIZE; i++) {
+        for (size_t i = recvbuf->ack_index;
+             i < recvbuf->end && slot->packet_size + sizeof(*write_ptr) <= MAX_PAYLOAD_SIZE;
+             i++) {
             const struct recv_slot *recv_slot = recvbuf_get_slot(recvbuf, i);
             if (recv_slot->filled) {
                 segnum += recv_slot->payload_size;
