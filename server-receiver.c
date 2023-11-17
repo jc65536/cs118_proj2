@@ -4,7 +4,7 @@
 #include "server.h"
 
 void *receive_packets(struct receiver_args *args) {
-    struct recvq *recvq = args->recvq;
+    struct recvbuf *recvbuf = args->recvbuf;
     struct ackq *ackq = args->ackq;
 
     // Create a UDP socket for listening
@@ -40,17 +40,17 @@ void *receive_packets(struct receiver_args *args) {
         }
 
         size_t payload_size = bytes_recvd - HEADER_SIZE;
-        enum recv_type status = recvq_write_slot(recvq, packet, payload_size);
+        enum recv_type status = recvbuf_write_slot(recvbuf, packet, payload_size);
 
         switch (status) {
         case SEQ:
-            ackq_push(ackq, recvq, false);
+            ackq_push(ackq, recvbuf, false);
             break;
         case RET:
             break;
         case OOO:
         case ERR:
-            ackq_push(ackq, recvq, true);
+            ackq_push(ackq, recvbuf, true);
             break;
         case IGN:
             break;

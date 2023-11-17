@@ -8,7 +8,7 @@
 #define RECVQ_CAPACITY 256
 #define ACKQ_CAPACITY 256
 
-struct recvq;
+struct recvbuf;
 
 enum recv_type {
     SEQ,
@@ -18,25 +18,25 @@ enum recv_type {
     IGN
 };
 
-struct recvq *recvq_new();
-enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size);
-bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
+struct recvbuf *recvbuf_new();
+enum recv_type recvbuf_write_slot(struct recvbuf *q, struct packet *p, size_t payload_size);
+bool recvbuf_pop(struct recvbuf *q, void (*cont)(const struct packet *, size_t));
 
 struct ackq;
 
 struct ackq *ackq_new();
-bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack);
+bool ackq_push(struct ackq *q, struct recvbuf *recvbuf, bool nack);
 bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
 
 // Thread routines
 
 struct receiver_args {
-    struct recvq *recvq;
+    struct recvbuf *recvbuf;
     struct ackq *ackq;
 };
 
 struct writer_args {
-    struct recvq *recvq;
+    struct recvbuf *recvbuf;
 };
 
 struct sender_args {
@@ -49,7 +49,7 @@ void *send_acks(struct sender_args *args);
 
 // Debug utils
 
-void debug_recvq(char *str, const struct recvq *q);
+void debug_recvq(char *str, const struct recvbuf *q);
 void debug_ackq(char *str, const struct ackq *q);
 
 #endif

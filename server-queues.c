@@ -1,6 +1,18 @@
 #include "server.h"
 
 struct recvq {
+    atomic_size_t num_queued;
+    atomic_size_t begin;
+    atomic_size_t end;
+    struct ack_slot {
+        struct packet packet;
+        size_t packet_size;
+    } *buf;
+};
+
+
+
+struct recvbuf {
     atomic_size_t rwnd;
     atomic_size_t begin;
     atomic_size_t end;
@@ -13,31 +25,31 @@ struct recvq {
     } *buf;
 };
 
-struct recvq *recvq_new() {
-    struct recvq *q = calloc(1, sizeof(struct recvq));
-    q->rwnd = RECVQ_CAPACITY;
-    q->buf = calloc(RECVQ_CAPACITY, sizeof(q->buf[0]));
-    return q;
+struct recvbuf *recvbuf_new() {
+    struct recvbuf *b = calloc(1, sizeof(struct recvbuf));
+    b->rwnd = RECVQ_CAPACITY;
+    b->buf = calloc(RECVQ_CAPACITY, sizeof(b->buf[0]));
+    return b;
 }
 
-const struct recv_slot *recvq_get_slot(struct recvq *q, size_t i) {
-    return q->buf + i % RECVQ_CAPACITY;
+const struct recv_slot *recvbuf_get_slot(struct recvbuf *b, size_t i) {
+    return b->buf + i % RECVQ_CAPACITY;
 }
 
-enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size) {
+enum recv_type recvbuf_write_slot(struct recvbuf *b, struct packet *p, size_t payload_size) {
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
-    if (packet_index < q->ack_index || q->end + q->rwnd <= packet_index) {
+    if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
         printf("Packet index %ld outside of receive window\n", packet_index);
-        debug_recvq("Out", q);
+        debug_recvq("Out", b);
         return ERR;
     }
 
-    struct recv_slot *slot = &q->buf[packet_index % RECVQ_CAPACITY];
+    struct recv_slot *slot = &b->buf[packet_index % RECVQ_CAPACITY];
 
     if (slot->filled) {
         printf("Packet %ld already received\n", packet_index);
-        debug_recvq("Dup", q);
+        debug_recvq("Dup", b);
         return IGN;
     }
 
@@ -47,51 +59,51 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
     slot->payload_size = payload_size;
     slot->filled = true;
 
-    if (packet_index == q->ack_index) {
-        if (q->ack_index == q->end) {
-            q->ack_index++;
-            q->end++;
-            q->acknum += payload_size;
-            q->rwnd--;
+    if (packet_index == b->ack_index) {
+        if (b->ack_index == b->end) {
+            b->ack_index++;
+            b->end++;
+            b->acknum += payload_size;
+            b->rwnd--;
         } else {
-            size_t i = q->ack_index;
-            uint32_t new_acknum = q->acknum;
+            size_t i = b->ack_index;
+            uint32_t new_acknum = b->acknum;
             const struct recv_slot *next_slot;
-            while ((next_slot = recvq_get_slot(q, i))->filled) {
+            while ((next_slot = recvbuf_get_slot(b, i))->filled) {
                 new_acknum += next_slot->payload_size;
                 i++;
             }
-            q->ack_index = i;
-            q->acknum = new_acknum;
+            b->ack_index = i;
+            b->acknum = new_acknum;
         }
-        debug_recvq("Seq", q);
+        debug_recvq("Seq", b);
         return SEQ;
-    } else if (packet_index < q->end) {
-        debug_recvq("Ret", q);
+    } else if (packet_index < b->end) {
+        debug_recvq("Ret", b);
         return RET;
     } else {
-        size_t rwnd_decrement = packet_index + 1 - q->end;
-        q->end = packet_index + 1;
-        q->rwnd -= rwnd_decrement;
-        debug_recvq("Ooo", q);
+        size_t rwnd_decrement = packet_index + 1 - b->end;
+        b->end = packet_index + 1;
+        b->rwnd -= rwnd_decrement;
+        debug_recvq("Ooo", b);
         return OOO;
     }
 }
 
-bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t)) {
-    if (q->begin == q->ack_index) {
+bool recvbuf_pop(struct recvbuf *b, void (*cont)(const struct packet *, size_t)) {
+    if (b->begin == b->ack_index) {
         return false;
     }
 
-    struct recv_slot *slot = (struct recv_slot *) recvq_get_slot(q, q->begin);
+    struct recv_slot *slot = (struct recv_slot *) recvbuf_get_slot(b, b->begin);
     slot->filled = false;
 
     cont(&slot->packet, slot->payload_size);
 
-    q->begin++;
-    q->rwnd++;
+    b->begin++;
+    b->rwnd++;
 
-    debug_recvq("Sent", q);
+    debug_recvq("Sent", b);
     return true;
 }
 
@@ -100,8 +112,8 @@ struct ackq {
     atomic_size_t begin;
     atomic_size_t end;
     struct ack_slot {
-        size_t packet_size;
         struct packet packet;
+        size_t packet_size;
     } *buf;
 };
 
@@ -111,7 +123,7 @@ struct ackq *ackq_new() {
     return q;
 }
 
-bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack) {
+bool ackq_push(struct ackq *q, struct recvbuf *recvbuf, bool nack) {
     if (q->num_queued == ACKQ_CAPACITY) {
         debug_ackq("ackq full", q);
         return false;
@@ -120,14 +132,14 @@ bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack) {
     struct ack_slot *slot = &q->buf[q->end % ACKQ_CAPACITY];
 
     slot->packet_size = HEADER_SIZE;
-    slot->packet.seqnum = recvq->acknum;
-    slot->packet.rwnd = recvq->rwnd;
+    slot->packet.seqnum = recvbuf->acknum;
+    slot->packet.rwnd = recvbuf->rwnd;
 
     if (nack) {
         uint32_t *write_ptr = (uint32_t *) slot->packet.payload;
-        size_t segnum = recvq->acknum;
-        for (size_t i = recvq->ack_index; i < recvq->end && slot->packet_size + sizeof(*write_ptr) <= MAX_PAYLOAD_SIZE; i++) {
-            const struct recv_slot *recv_slot = recvq_get_slot(recvq, i);
+        size_t segnum = recvbuf->acknum;
+        for (size_t i = recvbuf->ack_index; i < recvbuf->end && slot->packet_size + sizeof(*write_ptr) <= MAX_PAYLOAD_SIZE; i++) {
+            const struct recv_slot *recv_slot = recvbuf_get_slot(recvbuf, i);
             if (recv_slot->filled) {
                 segnum += recv_slot->payload_size;
             } else {
@@ -164,7 +176,7 @@ bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
 
 // Debug
 
-void debug_recvq(char *str, const struct recvq *q) {
+void debug_recvq(char *str, const struct recvbuf *q) {
     printf("%s\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_index %3ld\tacknum %5d\n",
            str, q->rwnd, q->begin, q->end, q->ack_index, q->acknum);
 }

@@ -15,14 +15,14 @@ void write_one(const struct packet *p, size_t payload_size) {
 }
 
 void *write_file(struct writer_args *args) {
-    struct recvq *recvq = args->recvq;
+    struct recvbuf *recvbuf = args->recvbuf;
 
     // Open the target file for writing (always write to output.txt)
     fp = fopen("output.txt", "wb");
 
     wrote_final = false;
     while (!wrote_final)
-        recvq_pop(recvq, write_one);
+        recvbuf_pop(recvbuf, write_one);
 
     printf("Wrote last packet\n");
     fclose(fp);
