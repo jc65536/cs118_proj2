@@ -4,13 +4,43 @@ struct recvq {
     atomic_size_t num_queued;
     atomic_size_t begin;
     atomic_size_t end;
-    struct ack_slot {
+    struct recvq_slot {
         struct packet packet;
         size_t packet_size;
     } *buf;
 };
 
+struct recvq *recvq_new() {
+    struct recvq *q = calloc(1, sizeof(struct recvq));
+    q->buf = calloc(RECVQ_CAPACITY, sizeof(q->buf[0]));
+    return q;
+}
 
+bool recvq_write(struct recvq *q, void (*cont)(struct packet *, size_t *)) {
+    if (q->num_queued == RECVQ_CAPACITY) {
+        return false;
+    }
+
+    struct recvq_slot *slot = &q->buf[q->end % RECVQ_CAPACITY];
+    cont(&slot->packet, &slot->packet_size);
+
+    q->end++;
+    q->num_queued++;
+    return true;
+}
+
+bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t)) {
+    if (q->num_queued == 0) {
+        return false;
+    }
+
+    const struct recvq_slot *slot = &q->buf[q->begin % RECVQ_CAPACITY];
+    cont(&slot->packet, slot->packet_size);
+
+    q->begin++;
+    q->num_queued--;
+    return true;
+}
 
 struct recvbuf {
     atomic_size_t rwnd;
@@ -27,16 +57,16 @@ struct recvbuf {
 
 struct recvbuf *recvbuf_new() {
     struct recvbuf *b = calloc(1, sizeof(struct recvbuf));
-    b->rwnd = RECVQ_CAPACITY;
-    b->buf = calloc(RECVQ_CAPACITY, sizeof(b->buf[0]));
+    b->rwnd = RECVBUF_CAPACITY;
+    b->buf = calloc(RECVBUF_CAPACITY, sizeof(b->buf[0]));
     return b;
 }
 
-const struct recv_slot *recvbuf_get_slot(struct recvbuf *b, size_t i) {
-    return b->buf + i % RECVQ_CAPACITY;
+const struct recv_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
+    return b->buf + i % RECVBUF_CAPACITY;
 }
 
-enum recv_type recvbuf_write_slot(struct recvbuf *b, struct packet *p, size_t payload_size) {
+enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t payload_size) {
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
@@ -45,12 +75,12 @@ enum recv_type recvbuf_write_slot(struct recvbuf *b, struct packet *p, size_t pa
         return ERR;
     }
 
-    struct recv_slot *slot = &b->buf[packet_index % RECVQ_CAPACITY];
+    struct recv_slot *slot = &b->buf[packet_index % RECVBUF_CAPACITY];
 
     if (slot->filled) {
         printf("Packet %ld already received\n", packet_index);
         debug_recvq("Dup", b);
-        return IGN;
+        return RET;
     }
 
     printf("Recv packet index %ld\n", packet_index);
@@ -123,7 +153,7 @@ struct ackq *ackq_new() {
     return q;
 }
 
-bool ackq_push(struct ackq *q, struct recvbuf *recvbuf, bool nack) {
+bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf, bool nack) {
     if (q->num_queued == ACKQ_CAPACITY) {
         debug_ackq("ackq full", q);
         return false;

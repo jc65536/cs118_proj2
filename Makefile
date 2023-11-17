@@ -13,6 +13,7 @@ $(objects): $(headers)
 server: server.o common.o \
 		server-queues.o \
 		server-receiver.o \
+		server-copier.o \
 		server-writer.o \
 		server-sender.o
 

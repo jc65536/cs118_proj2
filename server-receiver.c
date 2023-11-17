@@ -3,12 +3,24 @@
 
 #include "server.h"
 
+static int listen_sockfd;
+
+void receive_one(struct packet *p, size_t *packet_size) {
+    ssize_t bytes_recvd = recv(listen_sockfd, p, sizeof(struct packet), 0);
+
+    if (bytes_recvd == -1) {
+        perror("Error receiving message");
+        *packet_size = 0;
+    } else {
+        *packet_size = bytes_recvd;
+    }
+}
+
 void *receive_packets(struct receiver_args *args) {
-    struct recvbuf *recvbuf = args->recvbuf;
-    struct ackq *ackq = args->ackq;
+    struct recvq *recvq = args->recvq;
 
     // Create a UDP socket for listening
-    int listen_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    listen_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (listen_sockfd < 0) {
         perror("Could not create listen socket");
         exit(1);
@@ -29,32 +41,8 @@ void *receive_packets(struct receiver_args *args) {
 
     printf("Connected to proxy (recv)\n");
 
-    struct packet *packet = malloc(sizeof(struct packet));
-
     while (true) {
-        ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
-
-        if (bytes_recvd == -1) {
-            perror("Error receiving message");
-            continue;
-        }
-
-        size_t payload_size = bytes_recvd - HEADER_SIZE;
-        enum recv_type status = recvbuf_write_slot(recvbuf, packet, payload_size);
-
-        switch (status) {
-        case SEQ:
-            ackq_push(ackq, recvbuf, false);
-            break;
-        case RET:
-            break;
-        case OOO:
-        case ERR:
-            ackq_push(ackq, recvbuf, true);
-            break;
-        case IGN:
-            break;
-        }
+        recvq_write(recvq, receive_one);
     }
 
     return NULL;
