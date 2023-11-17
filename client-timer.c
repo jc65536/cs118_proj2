@@ -6,9 +6,13 @@ void handle_timer(union sigval args) {
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;
     struct sendq *sendq = targs->sendq;
     struct retransq *retransq = targs->retransq;
+
+    printf("Timer handler!!\n");
     
-    uint32_t oldest_seqnum = sendq_oldest_seqnum(sendq);
-    retransq_push(retransq, &oldest_seqnum, 1);
+    const struct packet *p = sendq_oldest_packet(sendq);
+
+    if (p)
+        retransq_push(retransq, &p->seqnum, 1);
 }
 
 void set_timer(timer_t t) {

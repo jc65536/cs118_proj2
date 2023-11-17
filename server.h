@@ -14,7 +14,8 @@ enum recv_type {
     SEQ,
     RET,
     OOO,
-    ERR
+    ERR,
+    IGN
 };
 
 struct recvq *recvq_new();
@@ -48,7 +49,7 @@ void *send_acks(struct sender_args *args);
 
 // Debug utils
 
-void debug_recvq(char *str, const struct packet *p, const struct recvq *q);
-void debug_ackq(char *str, const struct packet *p, const struct ackq *q);
+void debug_recvq(char *str, const struct recvq *q);
+void debug_ackq(char *str, const struct ackq *q);
 
 #endif

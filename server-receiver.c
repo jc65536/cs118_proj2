@@ -52,10 +52,9 @@ void *receive_packets(struct receiver_args *args) {
         case ERR:
             ackq_push(ackq, recvq, true);
             break;
-        }
-
-        if (is_final(packet))
+        case IGN:
             break;
+        }
     }
 
     printf("Received last packet\n");

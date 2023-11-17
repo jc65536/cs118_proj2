@@ -23,7 +23,7 @@ struct sendq *sendq_new();
 bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *));
 void sendq_pop(struct sendq *q, uint32_t acknum);
 bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, size_t));
-uint32_t sendq_oldest_seqnum(const struct sendq *q);
+const struct packet *sendq_oldest_packet(const struct sendq *q);
 
 struct retransq;
 

@@ -37,14 +37,13 @@ bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *)) {
 
 void sendq_pop(struct sendq *q, uint32_t acknum) {
     if (q->num_queued == 0) {
-        debug_sendq("sendq empty", q);
         return;
     }
 
     size_t ack_index = acknum / MAX_PAYLOAD_SIZE;
 
     if (ack_index <= q->begin || q->end < ack_index) {
-        printf("Cannot pop %ld\n", ack_index);
+        printf("Can't pop %ld\n", ack_index);
         return;
     }
 
@@ -74,6 +73,13 @@ bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, siz
     return true;
 }
 
+const struct packet *sendq_oldest_packet(const struct sendq *q) {
+    if (q->num_queued == 0)
+        return NULL;
+    else
+        return &sendq_get_slot(q, q->begin)->packet;
+}
+
 struct retransq {
     atomic_size_t num_queued;
     atomic_size_t begin;
@@ -96,7 +102,7 @@ size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t seqnum_
     seqnum_count = seqnum_count < rem_capacity ? seqnum_count : rem_capacity;
 
     for (size_t i = 0; i < seqnum_count; i++)
-        q->buf[(q->end + i) % RETRANSQ_CAPACITY] = seqnums[i];
+        q->buf[(q->end + i) % RETRANSQ_CAPACITY] = seqnums[seqnum_count - 1 - i];
 
     q->end += seqnum_count;
     q->num_queued += seqnum_count;
@@ -124,10 +130,6 @@ bool retransq_pop(struct retransq *q, const struct sendq *sendq,
     debug_retransq("Retrans", q);
 
     return true;
-}
-
-uint32_t sendq_oldest_seqnum(const struct sendq *q) {
-    return sendq_get_slot(q, q->begin)->packet.seqnum;
 }
 
 void debug_sendq(char *str, const struct sendq *q) {

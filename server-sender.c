@@ -3,13 +3,9 @@
 
 #include "server.h"
 
-static bool sent_final;
 static int send_sockfd;
 
 void send_one(const struct packet *p, size_t packet_size) {
-    if (is_final(p))
-        sent_final = true;
-
     ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
 
     if (bytes_sent == -1)
@@ -38,11 +34,8 @@ void *send_acks(struct sender_args *args) {
         exit(1);
     }
 
-    sent_final = false;
-    while (!sent_final)
+    while (true)
         ackq_pop(ackq, send_one);
 
-    printf("Wrote last packet\n");
-    close(send_sockfd);
     return NULL;
 }

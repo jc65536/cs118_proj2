@@ -53,7 +53,7 @@ void *receive_acks(struct receiver_args *args) {
 
             printf("NACK\tseq %7d\tdropped %3ld\n", packet->seqnum, seqnum_count);
         } else {
-            unset_timer(timer);
+            set_timer(timer);
         }
     }
 
