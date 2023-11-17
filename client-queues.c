@@ -20,7 +20,7 @@ struct sendq *sendq_new() {
 
 bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *)) {
     if (q->num_queued == SENDQ_CAPACITY) {
-        debug_sendq("sendq full", q);
+        // debug_sendq("sendq full", q);
         return false;
     }
 
@@ -40,10 +40,12 @@ void sendq_pop(struct sendq *q, uint32_t acknum) {
         return;
     }
 
-    size_t ack_index = acknum / MAX_PAYLOAD_SIZE;
+    // Round up
+    size_t ack_index = (acknum - 1) / MAX_PAYLOAD_SIZE + 1;
 
     if (ack_index <= q->begin || q->end < ack_index) {
         printf("Can't pop %ld\n", ack_index);
+        debug_sendq("ACK Ooo", q);
         return;
     }
 
@@ -60,7 +62,7 @@ const struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
 
 bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, size_t)) {
     if (q->send_next == q->end) {
-        debug_sendq("No packets to send", q);
+        // debug_sendq("No packets to send", q);
         return false;
     }
 
@@ -95,7 +97,7 @@ size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t seqnum_
     size_t rem_capacity = RETRANSQ_CAPACITY - q->num_queued;
 
     if (rem_capacity == 0) {
-        debug_retransq("retransq full", q);
+        // debug_retransq("retransq full", q);
         return 0;
     }
 
@@ -115,7 +117,7 @@ size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t seqnum_
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
                   void (*cont)(const struct packet *, size_t)) {
     if (q->num_queued == 0) {
-        debug_retransq("retransq empty", q);
+        // debug_retransq("retransq empty", q);
         return false;
     }
 

@@ -4,7 +4,8 @@ struct recvq {
     atomic_size_t rwnd;
     atomic_size_t begin;
     atomic_size_t end;
-    atomic_size_t ack_next;
+    atomic_size_t ack_index;
+    _Atomic uint32_t acknum;
     struct recv_slot {
         struct packet packet;
         size_t payload_size;
@@ -26,7 +27,7 @@ const struct recv_slot *recvq_get_slot(struct recvq *q, size_t i) {
 enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size) {
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
-    if (packet_index < q->ack_next || q->end + q->rwnd <= packet_index) {
+    if (packet_index < q->ack_index || q->end + q->rwnd <= packet_index) {
         printf("Packet index %ld outside of receive window\n", packet_index);
         debug_recvq("Out", q);
         return ERR;
@@ -35,7 +36,7 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
     struct recv_slot *slot = &q->buf[packet_index % RECVQ_CAPACITY];
 
     if (slot->filled) {
-        printf("Packet %d already received\n", p->seqnum);
+        printf("Packet %ld already received\n", packet_index);
         debug_recvq("Dup", q);
         return IGN;
     }
@@ -46,16 +47,22 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
     slot->payload_size = payload_size;
     slot->filled = true;
 
-    if (packet_index == q->ack_next) {
-        if (q->ack_next == q->end) {
-            q->ack_next++;
+    if (packet_index == q->ack_index) {
+        if (q->ack_index == q->end) {
+            q->ack_index++;
             q->end++;
+            q->acknum += payload_size;
             q->rwnd--;
         } else {
-            size_t i = q->ack_next;
-            while (recvq_get_slot(q, i)->filled)
+            size_t i = q->ack_index;
+            uint32_t new_acknum = q->acknum;
+            const struct recv_slot *next_slot;
+            while ((next_slot = recvq_get_slot(q, i))->filled) {
+                new_acknum += next_slot->payload_size;
                 i++;
-            q->ack_next = i;
+            }
+            q->ack_index = i;
+            q->acknum = new_acknum;
         }
         debug_recvq("Seq", q);
         return SEQ;
@@ -72,7 +79,7 @@ enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payloa
 }
 
 bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t)) {
-    if (q->begin == q->ack_next) {
+    if (q->begin == q->ack_index) {
         return false;
     }
 
@@ -110,17 +117,16 @@ bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack) {
         return false;
     }
 
-    struct ack_slot *slot = &q->buf[q->end];
-    size_t acknum = recvq->ack_next * MAX_PAYLOAD_SIZE;
+    struct ack_slot *slot = &q->buf[q->end % ACKQ_CAPACITY];
 
     slot->packet_size = HEADER_SIZE;
-    slot->packet.seqnum = acknum;
+    slot->packet.seqnum = recvq->acknum;
     slot->packet.rwnd = recvq->rwnd;
 
     if (nack) {
         uint32_t *write_ptr = (uint32_t *) slot->packet.payload;
-        size_t segnum = acknum;
-        for (size_t i = recvq->ack_next; i < recvq->end; i++) {
+        size_t segnum = recvq->acknum;
+        for (size_t i = recvq->ack_index; i < recvq->end && slot->packet_size + sizeof(*write_ptr) <= MAX_PAYLOAD_SIZE; i++) {
             const struct recv_slot *recv_slot = recvq_get_slot(recvq, i);
             if (recv_slot->filled) {
                 segnum += recv_slot->payload_size;
@@ -133,7 +139,7 @@ bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack) {
         }
     }
 
-    q->end = (q->end + 1) % ACKQ_CAPACITY;
+    q->end++;
     q->num_queued++;
 
     debug_ackq(nack ? "Queued NACK" : "Queued ACK", q);
@@ -145,11 +151,11 @@ bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
         return false;
     }
 
-    struct ack_slot *slot = &q->buf[q->begin];
+    struct ack_slot *slot = &q->buf[q->begin % ACKQ_CAPACITY];
 
     cont(&slot->packet, slot->packet_size);
 
-    q->begin = (q->begin + 1) % ACKQ_CAPACITY;
+    q->begin++;
     q->num_queued--;
 
     debug_ackq("Sent", q);
@@ -159,8 +165,8 @@ bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
 // Debug
 
 void debug_recvq(char *str, const struct recvq *q) {
-    printf("%s\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_next %3ld\n",
-           str, q->rwnd, q->begin, q->end, q->ack_next);
+    printf("%s\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_index %3ld\tacknum %5d\n",
+           str, q->rwnd, q->begin, q->end, q->ack_index, q->acknum);
 }
 
 void debug_ackq(char *str, const struct ackq *q) {

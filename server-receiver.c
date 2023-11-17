@@ -57,7 +57,5 @@ void *receive_packets(struct receiver_args *args) {
         }
     }
 
-    printf("Received last packet\n");
-
     return NULL;
 }
