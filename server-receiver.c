@@ -44,13 +44,13 @@ void *receive_packets(struct receiver_args *args) {
 
         switch (status) {
         case SEQ:
-            ackq_push(ackq, packet->seqnum + payload_size, recvq, false);
+            ackq_push(ackq, recvq, false);
             break;
         case RET:
             break;
         case OOO:
         case ERR:
-            ackq_push(ackq, recvq_get_acknum(recvq), recvq, true);
+            ackq_push(ackq, recvq, true);
             break;
         }
 

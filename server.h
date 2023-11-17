@@ -18,15 +18,14 @@ enum recv_type {
 };
 
 struct recvq *recvq_new();
-size_t recvq_get_acknum(struct recvq *q);
 enum recv_type recvq_write_slot(struct recvq *q, struct packet *p, size_t payload_size);
-void recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
+bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 
 struct ackq;
 
 struct ackq *ackq_new();
-bool ackq_push(struct ackq *q, size_t acknum, struct recvq *recvq, bool nack);
-void ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
+bool ackq_push(struct ackq *q, struct recvq *recvq, bool nack);
+bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
 
 // Thread routines
 

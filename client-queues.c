@@ -68,6 +68,9 @@ bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, siz
     const struct sendq_slot *slot = sendq_get_slot(q, q->send_next);
     cont(&slot->packet, slot->packet_size);
     q->send_next++;
+
+    debug_sendq("Send", q);
+
     return true;
 }
 
@@ -82,7 +85,7 @@ struct retransq *retransq_new() {
     return calloc(1, sizeof(struct retransq));
 }
 
-size_t retransq_push(struct retransq *q, uint32_t *seqnums, size_t seqnum_count) {
+size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t seqnum_count) {
     size_t rem_capacity = RETRANSQ_CAPACITY - q->num_queued;
 
     if (rem_capacity == 0) {
@@ -117,7 +120,14 @@ bool retransq_pop(struct retransq *q, const struct sendq *sendq,
 
     q->begin++;
     q->num_queued--;
+
+    debug_retransq("Retrans", q);
+
     return true;
+}
+
+uint32_t sendq_oldest_seqnum(const struct sendq *q) {
+    return sendq_get_slot(q, q->begin)->packet.seqnum;
 }
 
 void debug_sendq(char *str, const struct sendq *q) {

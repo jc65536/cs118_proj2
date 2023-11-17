@@ -6,9 +6,6 @@ static bool wrote_final;
 static FILE *fp;
 
 void write_one(const struct packet *p, size_t payload_size) {
-    if (!p)
-        return;
-    
     if (is_final(p))
         wrote_final = true;
 

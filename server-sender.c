@@ -7,9 +7,6 @@ static bool sent_final;
 static int send_sockfd;
 
 void send_one(const struct packet *p, size_t packet_size) {
-    if (!p)
-        return;
-
     if (is_final(p))
         sent_final = true;
 

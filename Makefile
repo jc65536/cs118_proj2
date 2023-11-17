@@ -1,11 +1,14 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -g
 
-all: clean build
+objects = $(patsubst %.c,%.o,$(wildcard *.c))
+headers = $(wildcard *.h)
 
 default: build
 
 build: server client
+
+$(objects): $(headers)
 
 server: server.o common.o \
 		server-queues.o \
@@ -14,6 +17,7 @@ server: server.o common.o \
 		server-sender.o
 
 client: client.o common.o \
+		client-timer.o \
 		client-queues.o \
 		client-reader.o \
 		client-sender.o \

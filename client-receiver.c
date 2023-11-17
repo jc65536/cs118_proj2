@@ -6,6 +6,7 @@
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
+    timer_t timer = args->timer;
 
     // Create a UDP socket for listening
     int listen_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -34,8 +35,10 @@ void *receive_acks(struct receiver_args *args) {
     while (true) {
         ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
 
-        if (bytes_recvd == -1)
+        if (bytes_recvd == -1) {
             perror("Error receiving message");
+            continue;
+        }
 
         sendq_pop(sendq, packet->seqnum);
 
@@ -49,6 +52,8 @@ void *receive_acks(struct receiver_args *args) {
             retransq_push(retransq, seqnums, seqnum_count);
 
             printf("NACK\tseq %7d\tdropped %3ld\n", packet->seqnum, seqnum_count);
+        } else {
+            unset_timer(timer);
         }
     }
 
