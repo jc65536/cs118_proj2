@@ -62,7 +62,7 @@ struct recvbuf *recvbuf_new() {
     return b;
 }
 
-const struct recv_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
+struct recv_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
@@ -120,7 +120,7 @@ bool recvbuf_pop(struct recvbuf *b, void (*cont)(const struct packet *, size_t))
         return false;
     }
 
-    struct recv_slot *slot = (struct recv_slot *) recvbuf_get_slot(b, b->begin);
+    struct recv_slot *slot = recvbuf_get_slot(b, b->begin);
     slot->filled = false;
 
     cont(&slot->packet, slot->payload_size);
@@ -162,7 +162,7 @@ bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf) {
     q->end++;
     q->num_queued++;
 
-    debug_ackq(format("Queued ack %d", slot->packet.seqnum), q);
+    debug_ackq(format("Queued ack %d", slot->packet.seqnum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 
@@ -177,7 +177,7 @@ bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
     q->begin++;
     q->num_queued--;
 
-    debug_ackq(format("Sent ack %d", slot->packet.seqnum), q);
+    debug_ackq(format("Sent ack %d", slot->packet.seqnum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 

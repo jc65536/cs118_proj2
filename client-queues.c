@@ -90,7 +90,7 @@ struct retransq {
     atomic_size_t num_queued;
     atomic_size_t begin;
     atomic_size_t end;
-    size_t buf[RETRANSQ_CAPACITY];
+    uint32_t buf[RETRANSQ_CAPACITY];
 };
 
 struct retransq *retransq_new() {
@@ -102,13 +102,11 @@ bool retransq_push(struct retransq *q, uint32_t seqnum) {
         return false;
     }
 
-    size_t index = seqnum / MAX_PAYLOAD_SIZE;
-    q->buf[q->end % RETRANSQ_CAPACITY] = index;
-
+    q->buf[q->end % RETRANSQ_CAPACITY] = seqnum;
     q->end++;
     q->num_queued++;
 
-    debug_retransq(format("Queued retransmit %ld", index), q);
+    debug_retransq(format("Queued retransmit %d", seqnum / MAX_PAYLOAD_SIZE), q);
 
     return true;
 }
@@ -119,7 +117,7 @@ bool retransq_pop(struct retransq *q, const struct sendq *sendq,
         return false;
     }
 
-    size_t index = q->buf[q->begin % RETRANSQ_CAPACITY];
+    size_t index = q->buf[q->begin % RETRANSQ_CAPACITY] / MAX_PAYLOAD_SIZE;
     const struct sendq_slot *slot = sendq_get_slot(sendq, index);
 
     if (!cont(&slot->packet, slot->packet_size))
