@@ -32,6 +32,9 @@ void *receive_acks(struct receiver_args *args) {
 
     struct packet *packet = malloc(sizeof(struct packet));
 
+    uint32_t acknum = 0;
+    int dupcount = 0;
+
     while (true) {
         ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
 
@@ -40,20 +43,16 @@ void *receive_acks(struct receiver_args *args) {
             continue;
         }
 
-        sendq_pop(sendq, packet->seqnum);
-
-        size_t payload_size = bytes_recvd - HEADER_SIZE;
-
-        if (payload_size > 0) {
-            // Negative ACK
-            size_t seqnum_count = payload_size / sizeof(uint32_t);
-            uint32_t *seqnums = (uint32_t *) packet->payload;
-
-            retransq_push(retransq, seqnums, seqnum_count);
-
-            printf("NACK\tseq %7d\tdropped %3ld\n", packet->seqnum, seqnum_count);
+        if (packet->seqnum > acknum) {
+            dupcount = 0;
+            if (sendq_pop(sendq, packet->seqnum) == 0)
+                unset_timer(timer);
+            acknum = packet->seqnum;
         } else {
-            set_timer(timer);
+            dupcount++;
+            if (dupcount == 3) {
+                retransq_push(retransq, sendq_oldest_packet(sendq)->seqnum);
+            }
         }
     }
 

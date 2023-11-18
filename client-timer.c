@@ -12,7 +12,7 @@ void handle_timer(union sigval args) {
     const struct packet *p = sendq_oldest_packet(sendq);
 
     if (p)
-        retransq_push(retransq, &p->seqnum, 1);
+        retransq_push(retransq, p->seqnum);
 }
 
 void set_timer(timer_t t) {
@@ -25,4 +25,10 @@ void set_timer(timer_t t) {
 void unset_timer(timer_t t) {
     struct itimerspec itspec = {};
     timer_settime(t, 0, &itspec, NULL);
+}
+
+bool is_timer_set(timer_t t) {
+    struct itimerspec itspec;
+    timer_gettime(t, &itspec);
+    return !(itspec.it_value.tv_sec + itspec.it_value.tv_nsec == 0);
 }

@@ -18,9 +18,7 @@ bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 struct recvbuf;
 
 enum recv_type {
-    SEQ,
-    RET,
-    OOO,
+    OK,
     ERR,
     END
 };
@@ -32,7 +30,7 @@ bool recvbuf_pop(struct recvbuf *q, void (*cont)(const struct packet *, size_t))
 struct ackq;
 
 struct ackq *ackq_new();
-bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf, bool nack);
+bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf);
 bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
 
 // Thread routines

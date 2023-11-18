@@ -20,17 +20,18 @@ static inline void print_send(const struct packet *pkt, bool resend) {
 struct sendq;
 
 struct sendq *sendq_new();
-bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *));
-void sendq_pop(struct sendq *q, uint32_t acknum);
-bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, size_t));
+bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *));
+// Returns q->in_flight afterwards
+size_t sendq_pop(struct sendq *q, uint32_t acknum);
+bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, size_t));
 const struct packet *sendq_oldest_packet(const struct sendq *q);
 
 struct retransq;
 
 struct retransq *retransq_new();
-size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t num_retrans);
+bool retransq_push(struct retransq *q, const uint32_t seqnums);
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
-                  void (*cont)(const struct packet *, size_t));
+                  bool (*cont)(const struct packet *, size_t));
 
 // Thread routines
 
@@ -59,6 +60,7 @@ struct receiver_args {
 void handle_timer(union sigval args);
 void set_timer(timer_t t);
 void unset_timer(timer_t t);
+bool is_timer_set(timer_t t);
 
 void *read_file(struct reader_args *args);
 void *send_packets(struct sender_args *args);

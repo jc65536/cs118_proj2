@@ -6,11 +6,15 @@
 
 static int send_sockfd;
 
-void send_one(const struct packet *p, size_t packet_size) {
+bool send_one(const struct packet *p, size_t packet_size) {
     ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
 
-    if (bytes_sent == -1)
+    if (bytes_sent == -1) {
         perror("Error sending message");
+        return false;
+    }
+
+    return true;
 }
 
 void *send_packets(struct sender_args *args) {
@@ -40,8 +44,11 @@ void *send_packets(struct sender_args *args) {
     printf("Connected to proxy (send)\n");
 
     while (true) {
-        if (retransq_pop(retransq, sendq, send_one) || sendq_consume_next(sendq, send_one))
-            set_timer(timer);
+        if (retransq_pop(retransq, sendq, send_one) ||
+            sendq_consume_next(sendq, send_one)) {
+            if (!is_timer_set(timer))
+                set_timer(timer);
+        }
     }
 
     printf("Sent last packet\n");

@@ -6,7 +6,7 @@ static bool read_final;
 static FILE *fp;
 uint32_t seqnum;
 
-void read_one(struct packet *p, size_t *packet_size) {
+bool read_one(struct packet *p, size_t *packet_size) {
     size_t bytes_read = fread(p->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
 
     if (bytes_read != MAX_PAYLOAD_SIZE) {
@@ -15,6 +15,7 @@ void read_one(struct packet *p, size_t *packet_size) {
             read_final = true;
         } else {
             perror("Error reading file");
+            return false;
         }
     } else {
         p->flags = 0;
@@ -23,6 +24,7 @@ void read_one(struct packet *p, size_t *packet_size) {
     p->seqnum = seqnum;
     *packet_size = HEADER_SIZE + bytes_read;
     seqnum += bytes_read;
+    return true;
 }
 
 void *read_file(struct reader_args *args) {

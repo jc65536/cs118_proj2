@@ -6,6 +6,7 @@ struct sendq {
     atomic_size_t end;
     atomic_size_t send_next;
     atomic_size_t cwnd;
+    atomic_size_t in_flight;
     struct sendq_slot {
         struct packet packet;
         size_t packet_size;
@@ -14,11 +15,12 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
+    q->cwnd = 16;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
 }
 
-bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *)) {
+bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *)) {
     if (q->num_queued == SENDQ_CAPACITY) {
         // debug_sendq("sendq full", q);
         return false;
@@ -26,7 +28,8 @@ bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *)) {
 
     struct sendq_slot *slot = &q->buf[q->end % SENDQ_CAPACITY];
 
-    cont(&slot->packet, &slot->packet_size);
+    if (!cont(&slot->packet, &slot->packet_size))
+        return false;
 
     q->end++;
     q->num_queued++;
@@ -35,40 +38,42 @@ bool sendq_write(struct sendq *q, void (*cont)(struct packet *, size_t *)) {
     return true;
 }
 
-void sendq_pop(struct sendq *q, uint32_t acknum) {
-    if (q->num_queued == 0) {
-        return;
-    }
-
+size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     // Round up
     size_t ack_index = (acknum - 1) / MAX_PAYLOAD_SIZE + 1;
 
     if (ack_index <= q->begin || q->end < ack_index) {
         printf("Can't pop %ld\n", ack_index);
-        debug_sendq("ACK Ooo", q);
-        return;
+        debug_sendq("ACK err", q);
+        return 0;
     }
 
     size_t num_popped = ack_index - q->begin;
     q->begin = ack_index;
     q->num_queued -= num_popped;
+    q->in_flight -= num_popped;
 
     debug_sendq("ACK", q);
+    return q->in_flight;
 }
 
 const struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
 }
 
-bool sendq_consume_next(struct sendq *q, void (*cont)(const struct packet *, size_t)) {
-    if (q->send_next == q->end) {
+bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
+    if (q->send_next == q->begin + q->cwnd || q->send_next == q->end) {
         // debug_sendq("No packets to send", q);
         return false;
     }
 
     const struct sendq_slot *slot = sendq_get_slot(q, q->send_next);
-    cont(&slot->packet, slot->packet_size);
+
+    if (!cont(&slot->packet, slot->packet_size))
+        return false;
+
     q->send_next++;
+    q->in_flight++;
 
     debug_sendq("Send", q);
 
@@ -93,29 +98,24 @@ struct retransq *retransq_new() {
     return calloc(1, sizeof(struct retransq));
 }
 
-size_t retransq_push(struct retransq *q, const uint32_t *seqnums, size_t seqnum_count) {
-    size_t rem_capacity = RETRANSQ_CAPACITY - q->num_queued;
-
-    if (rem_capacity == 0) {
+bool retransq_push(struct retransq *q, const uint32_t seqnum) {
+    if (q->num_queued == RETRANSQ_CAPACITY) {
         // debug_retransq("retransq full", q);
-        return 0;
+        return false;
     }
 
-    seqnum_count = seqnum_count < rem_capacity ? seqnum_count : rem_capacity;
+    q->buf[q->end % RETRANSQ_CAPACITY] = seqnum;
 
-    for (size_t i = 0; i < seqnum_count; i++)
-        q->buf[(q->end + i) % RETRANSQ_CAPACITY] = seqnums[seqnum_count - 1 - i];
+    q->end++;
+    q->num_queued++;
 
-    q->end += seqnum_count;
-    q->num_queued += seqnum_count;
+    debug_retransq("Retrans push", q);
 
-    debug_retransq("NACK", q);
-
-    return seqnum_count;
+    return true;
 }
 
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
-                  void (*cont)(const struct packet *, size_t)) {
+                  bool (*cont)(const struct packet *, size_t)) {
     if (q->num_queued == 0) {
         // debug_retransq("retransq empty", q);
         return false;
@@ -124,19 +124,20 @@ bool retransq_pop(struct retransq *q, const struct sendq *sendq,
     uint32_t seqnum = q->buf[q->begin % RETRANSQ_CAPACITY];
     const struct sendq_slot *slot = sendq_get_slot(sendq, seqnum / MAX_PAYLOAD_SIZE);
 
-    cont(&slot->packet, slot->packet_size);
+    if (!cont(&slot->packet, slot->packet_size))
+        return false;
 
     q->begin++;
     q->num_queued--;
 
-    debug_retransq("Retrans", q);
+    debug_retransq("Retrans pop", q);
 
     return true;
 }
 
 void debug_sendq(char *str, const struct sendq *q) {
-    printf("%s\tbegin %3ld\tend %3ld\tsend %3ld\tqueued %3ld\n",
-           str, q->begin, q->end, q->send_next, q->num_queued);
+    printf("%s\tbegin %3ld\tend %3ld\tsend %3ld\tqueued %3ld\tin_flight %3ld\n",
+           str, q->begin, q->end, q->send_next, q->num_queued, q->in_flight);
 }
 
 void debug_retransq(char *str, const struct retransq *q) {
