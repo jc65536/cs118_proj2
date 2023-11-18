@@ -1,5 +1,6 @@
-CC=gcc
-CFLAGS=-Wall -Wextra -g
+CC = gcc
+LDFLAGS = -lrt
+CFLAGS = -Wall -Wextra -g
 
 objects = $(patsubst %.c,%.o,$(wildcard *.c))
 headers = $(wildcard *.h)
