@@ -74,7 +74,7 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
         return ERR;
     }
 
-    struct recv_slot *slot = &b->buf[packet_index % RECVBUF_CAPACITY];
+    struct recv_slot *slot = recvbuf_get_slot(b, packet_index);
 
     if (slot->filled) {
         debug_recvq(format("Duplicate %ld", packet_index), b);
