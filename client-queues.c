@@ -17,7 +17,7 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
-    q->cwnd = 16;
+    q->cwnd = SENDQ_CAPACITY;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
 }
@@ -86,8 +86,7 @@ bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
         return false;
 
     const struct sendq_slot *slot = sendq_get_slot(q, index);
-    cont(&slot->packet, slot->packet_size);
-    return true;
+    return cont(&slot->packet, slot->packet_size);
 }
 
 const struct packet *sendq_oldest_packet(const struct sendq *q) {
