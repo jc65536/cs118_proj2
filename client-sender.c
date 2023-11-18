@@ -45,7 +45,7 @@ void *send_packets(struct sender_args *args) {
 
     while (true) {
         if (retransq_pop(retransq, sendq, send_one) ||
-            sendq_consume_next(sendq, send_one)) {
+            sendq_send_next(sendq, send_one)) {
             if (!is_timer_set(timer))
                 set_timer(timer);
         }

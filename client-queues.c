@@ -1,10 +1,12 @@
+#include <stdatomic.h>
+
 #include "client.h"
 
 struct sendq {
-    atomic_size_t num_queued;
     atomic_size_t begin;
     atomic_size_t end;
     atomic_size_t send_next;
+    atomic_size_t num_queued;
     atomic_size_t cwnd;
     atomic_size_t in_flight;
     struct sendq_slot {
@@ -22,7 +24,6 @@ struct sendq *sendq_new() {
 
 bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *)) {
     if (q->num_queued == SENDQ_CAPACITY) {
-        // debug_sendq("sendq full", q);
         return false;
     }
 
@@ -42,15 +43,15 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     // Round up
     size_t ack_index = (acknum - 1) / MAX_PAYLOAD_SIZE + 1;
 
-    if (ack_index <= q->begin || q->end < ack_index) {
+    if (ack_index <= q->begin || q->send_next < ack_index) {
         debug_sendq(format("sendq can't pop %ld", ack_index), q);
-        return 0;
+        return q->in_flight;
     }
 
     size_t num_popped = ack_index - q->begin;
     q->begin = ack_index;
-    q->num_queued -= num_popped;
     q->in_flight -= num_popped;
+    q->num_queued -= num_popped;
 
     debug_sendq(format("Received ack %d", acknum), q);
     return q->in_flight;
@@ -60,7 +61,7 @@ const struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
 }
 
-bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
+bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
     if (q->send_next == q->begin + q->cwnd || q->send_next == q->end) {
         return false;
     }
@@ -79,7 +80,7 @@ bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, siz
 }
 
 const struct packet *sendq_oldest_packet(const struct sendq *q) {
-    if (q->num_queued == 0)
+    if (q->in_flight == 0)
         return NULL;
     else
         return &sendq_get_slot(q, q->begin)->packet;
@@ -96,9 +97,8 @@ struct retransq *retransq_new() {
     return calloc(1, sizeof(struct retransq));
 }
 
-bool retransq_push(struct retransq *q, const uint32_t seqnum) {
+bool retransq_push(struct retransq *q, uint32_t seqnum) {
     if (q->num_queued == RETRANSQ_CAPACITY) {
-        // debug_retransq("retransq full", q);
         return false;
     }
 
@@ -116,7 +116,6 @@ bool retransq_push(struct retransq *q, const uint32_t seqnum) {
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
                   bool (*cont)(const struct packet *, size_t)) {
     if (q->num_queued == 0) {
-        // debug_retransq("retransq empty", q);
         return false;
     }
 

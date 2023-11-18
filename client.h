@@ -1,7 +1,6 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <stdatomic.h>
 #include <signal.h>
 #include <time.h>
 
@@ -21,20 +20,30 @@ struct sendq;
 
 struct sendq *sendq_new();
 
+/* If possible, call cont to write a packet into q. Returns whether the write was
+ * successful.
+ */
 bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *));
 
-// Returns q->in_flight afterwards
+/* If possible, pop packets from q until acknum. Returns the remaining number of
+ * in-flight packets (number of packets sent but not ACKed).
+ */
 size_t sendq_pop(struct sendq *q, uint32_t acknum);
 
-bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, size_t));
+/* If possible, call cont to send the next packet. Returns whether the send was
+ * successful.
+ */
+bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t));
 
+/* Returns the oldest in-flight packet, or NULL if all packets are ACKed.
+ */
 const struct packet *sendq_oldest_packet(const struct sendq *q);
 
 struct retransq;
 
 struct retransq *retransq_new();
 
-bool retransq_push(struct retransq *q, const uint32_t seqnums);
+bool retransq_push(struct retransq *q, uint32_t seqnum);
 
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
                   bool (*cont)(const struct packet *, size_t));

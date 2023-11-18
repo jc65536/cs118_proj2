@@ -1,8 +1,5 @@
-#include <arpa/inet.h>
-#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -44,6 +41,6 @@ int main(int argc, char *argv[]) {
     pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
 
     pthread_join(reader_thread, NULL);
-    // pthread_join(sender_thread, NULL);
+    pthread_join(sender_thread, NULL);
     pthread_join(receiver_thread, NULL);
 }
