@@ -52,9 +52,7 @@ void *receive_acks(struct receiver_args *args) {
             dupcount++;
             if (dupcount == 3) {
                 printf("3 duplicate acks!\n");
-                const struct packet *oldest = sendq_oldest_packet(sendq);
-                if (oldest)
-                    retransq_push(retransq, oldest->seqnum);
+                retransq_push(retransq, packet->seqnum);
             }
         }
     }

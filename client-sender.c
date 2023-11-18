@@ -5,6 +5,7 @@
 #include "client.h"
 
 static int send_sockfd;
+static struct sendq *sendq;
 
 bool send_one(const struct packet *p, size_t packet_size) {
     ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
@@ -17,8 +18,13 @@ bool send_one(const struct packet *p, size_t packet_size) {
     return true;
 }
 
+bool send_seqnum(uint32_t n) {
+    sendq_lookup_seqnum(sendq, n, send_one);
+    return true;
+}
+
 void *send_packets(struct sender_args *args) {
-    struct sendq *sendq = args->sendq;
+    sendq = args->sendq;
     struct retransq *retransq = args->retransq;
     timer_t timer = args->timer;
 
@@ -44,7 +50,7 @@ void *send_packets(struct sender_args *args) {
     printf("Connected to proxy (send)\n");
 
     while (true) {
-        if (retransq_pop(retransq, sendq, send_one) ||
+        if (retransq_pop(retransq, send_seqnum) ||
             sendq_send_next(sendq, send_one)) {
             if (!is_timer_set(timer))
                 set_timer(timer);

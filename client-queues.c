@@ -22,12 +22,16 @@ struct sendq *sendq_new() {
     return q;
 }
 
+struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
+    return &q->buf[i % SENDQ_CAPACITY];
+}
+
 bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *)) {
     if (q->num_queued == SENDQ_CAPACITY) {
         return false;
     }
 
-    struct sendq_slot *slot = &q->buf[q->end % SENDQ_CAPACITY];
+    struct sendq_slot *slot = sendq_get_slot(q, q->end);
 
     if (!cont(&slot->packet, &slot->packet_size))
         return false;
@@ -57,10 +61,6 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     return q->in_flight;
 }
 
-const struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
-    return &q->buf[i % SENDQ_CAPACITY];
-}
-
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
     if (q->send_next == q->begin + q->cwnd || q->send_next == q->end) {
         return false;
@@ -75,7 +75,18 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
     q->in_flight++;
 
     debug_sendq("Send", q);
+    return true;
+}
 
+bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
+                         bool (*cont)(const struct packet *, size_t)) {
+    size_t index = (seqnum - 1) / MAX_PAYLOAD_SIZE + 1;
+
+    if (index < q->begin || q->end <= index)
+        return false;
+
+    const struct sendq_slot *slot = sendq_get_slot(q, index);
+    cont(&slot->packet, slot->packet_size);
     return true;
 }
 
@@ -107,27 +118,23 @@ bool retransq_push(struct retransq *q, uint32_t seqnum) {
     q->num_queued++;
 
     debug_retransq(format("Queued retransmit %d", seqnum / MAX_PAYLOAD_SIZE), q);
-
     return true;
 }
 
-bool retransq_pop(struct retransq *q, const struct sendq *sendq,
-                  bool (*cont)(const struct packet *, size_t)) {
+bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t)) {
     if (q->num_queued == 0) {
         return false;
     }
 
-    size_t index = q->buf[q->begin % RETRANSQ_CAPACITY] / MAX_PAYLOAD_SIZE;
-    const struct sendq_slot *slot = sendq_get_slot(sendq, index);
+    uint32_t seqnum = q->buf[q->begin % RETRANSQ_CAPACITY];
 
-    if (!cont(&slot->packet, slot->packet_size))
+    if (!cont(seqnum))
         return false;
 
     q->begin++;
     q->num_queued--;
 
-    debug_retransq(format("Retransmitted %ld", index), q);
-
+    debug_retransq(format("Retransmitted %ld", seqnum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 
