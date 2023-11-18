@@ -25,13 +25,13 @@ enum recv_type {
 
 struct recvbuf *recvbuf_new();
 enum recv_type recvbuf_write(struct recvbuf *q, const struct packet *p, size_t payload_size);
-bool recvbuf_pop(struct recvbuf *q, void (*cont)(const struct packet *, size_t));
+bool recvbuf_pop(struct recvbuf *q, bool (*cont)(const struct packet *, size_t));
 
 struct ackq;
 
 struct ackq *ackq_new();
 bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf);
-bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t));
+bool ackq_pop(struct ackq *q, bool (*cont)(const struct packet *, size_t));
 
 // Thread routines
 

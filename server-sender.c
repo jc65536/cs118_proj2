@@ -5,11 +5,15 @@
 
 static int send_sockfd;
 
-void send_one(const struct packet *p, size_t packet_size) {
+bool send_one(const struct packet *p, size_t packet_size) {
     ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
 
-    if (bytes_sent == -1)
+    if (bytes_sent == -1) {
         printf("Error sending ack\n");
+        return false;
+    }
+
+    return true;
 }
 
 void *send_acks(struct sender_args *args) {

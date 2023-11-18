@@ -5,13 +5,18 @@
 static bool wrote_final;
 static FILE *fp;
 
-void write_one(const struct packet *p, size_t payload_size) {
+bool write_one(const struct packet *p, size_t payload_size) {
     if (is_final(p))
         wrote_final = true;
 
     size_t bytes_written = fwrite(p->payload, sizeof(char), payload_size, fp);
-    if (bytes_written != payload_size)
+
+    if (bytes_written != payload_size) {
         perror("Error writing output");
+        return false;
+    }
+
+    return true;
 }
 
 void *write_file(struct writer_args *args) {

@@ -115,7 +115,7 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
     return ret;
 }
 
-bool recvbuf_pop(struct recvbuf *b, void (*cont)(const struct packet *, size_t)) {
+bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
     if (b->begin == b->ack_index) {
         return false;
     }
@@ -123,7 +123,8 @@ bool recvbuf_pop(struct recvbuf *b, void (*cont)(const struct packet *, size_t))
     struct recv_slot *slot = recvbuf_get_slot(b, b->begin);
     slot->filled = false;
 
-    cont(&slot->packet, slot->payload_size);
+    if (!cont(&slot->packet, slot->payload_size))
+        return false;
 
     b->begin++;
     b->rwnd++;
@@ -166,13 +167,15 @@ bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf) {
     return true;
 }
 
-bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
+bool ackq_pop(struct ackq *q, bool (*cont)(const struct packet *, size_t)) {
     if (q->num_queued == 0) {
         return false;
     }
 
     struct ack_slot *slot = &q->buf[q->begin % ACKQ_CAPACITY];
-    cont(&slot->packet, slot->packet_size);
+
+    if (!cont(&slot->packet, slot->packet_size))
+        return false;
 
     q->begin++;
     q->num_queued--;
