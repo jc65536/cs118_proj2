@@ -81,7 +81,7 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
         return ERR;
     }
 
-    memcpy(&slot->packet, p, sizeof(*p));
+    memcpy(&slot->packet, p, HEADER_SIZE + payload_size);
     slot->payload_size = payload_size;
     slot->filled = true;
 
