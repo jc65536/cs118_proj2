@@ -60,7 +60,7 @@ void *send_acks(struct sender_args *args);
 
 // Debug utils
 
-void debug_recvq(char *str, const struct recvbuf *q);
-void debug_ackq(char *str, const struct ackq *q);
+void debug_recvq(const char *str, const struct recvbuf *q);
+void debug_ackq(const char *str, const struct ackq *q);
 
 #endif

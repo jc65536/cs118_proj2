@@ -20,16 +20,22 @@ static inline void print_send(const struct packet *pkt, bool resend) {
 struct sendq;
 
 struct sendq *sendq_new();
+
 bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *));
+
 // Returns q->in_flight afterwards
 size_t sendq_pop(struct sendq *q, uint32_t acknum);
+
 bool sendq_consume_next(struct sendq *q, bool (*cont)(const struct packet *, size_t));
+
 const struct packet *sendq_oldest_packet(const struct sendq *q);
 
 struct retransq;
 
 struct retransq *retransq_new();
+
 bool retransq_push(struct retransq *q, const uint32_t seqnums);
+
 bool retransq_pop(struct retransq *q, const struct sendq *sendq,
                   bool (*cont)(const struct packet *, size_t));
 
@@ -68,7 +74,7 @@ void *receive_acks(struct receiver_args *args);
 
 // Debug
 
-void debug_sendq(char *str, const struct sendq *q);
-void debug_retransq(char *str, const struct retransq *q);
+void debug_sendq(const char *str, const struct sendq *q);
+void debug_retransq(const char *str, const struct retransq *q);
 
 #endif

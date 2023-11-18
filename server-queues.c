@@ -70,20 +70,16 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
-        printf("Packet index %ld outside of receive window\n", packet_index);
-        debug_recvq("Out", b);
+        debug_recvq(format("Out of bounds %ld", packet_index), b);
         return ERR;
     }
 
     struct recv_slot *slot = &b->buf[packet_index % RECVBUF_CAPACITY];
 
     if (slot->filled) {
-        printf("Packet %ld already received\n", packet_index);
-        debug_recvq("Dup", b);
+        debug_recvq(format("Duplicate %ld", packet_index), b);
         return ERR;
     }
-
-    printf("Recv packet index %ld\n", packet_index);
 
     memcpy(&slot->packet, p, sizeof(*p));
     slot->payload_size = payload_size;
@@ -114,7 +110,7 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
         b->rwnd -= rwnd_decrement;
     }
 
-    debug_recvq("Received", b);
+    debug_recvq(format("Received %ld", packet_index), b);
 
     return ret;
 }
@@ -132,7 +128,7 @@ bool recvbuf_pop(struct recvbuf *b, void (*cont)(const struct packet *, size_t))
     b->begin++;
     b->rwnd++;
 
-    debug_recvq("Sent", b);
+    debug_recvq("Wrote", b);
     return true;
 }
 
@@ -154,7 +150,6 @@ struct ackq *ackq_new() {
 
 bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf) {
     if (q->num_queued == ACKQ_CAPACITY) {
-        debug_ackq("ackq full", q);
         return false;
     }
 
@@ -167,7 +162,7 @@ bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf) {
     q->end++;
     q->num_queued++;
 
-    debug_ackq("Queued ACK", q);
+    debug_ackq(format("Queued ack %d", slot->packet.seqnum), q);
     return true;
 }
 
@@ -182,18 +177,18 @@ bool ackq_pop(struct ackq *q, void (*cont)(const struct packet *, size_t)) {
     q->begin++;
     q->num_queued--;
 
-    debug_ackq("Sent", q);
+    debug_ackq(format("Sent ack %d", slot->packet.seqnum), q);
     return true;
 }
 
 // Debug
 
-void debug_recvq(char *str, const struct recvbuf *q) {
-    printf("%s\trwnd %3ld\tbegin %3ld\tend %3ld\t\tack_index %3ld\tacknum %5d\n",
+void debug_recvq(const char *str, const struct recvbuf *q) {
+    printf("%-32s  rwnd %6ld  begin %6ld  end %6ld  ack_index %6ld  acknum %8d\n",
            str, q->rwnd, q->begin, q->end, q->ack_index, q->acknum);
 }
 
-void debug_ackq(char *str, const struct ackq *q) {
-    printf("%s\tqueued %3ld\tbegin %3ld\tend %3ld\n",
+void debug_ackq(const char *str, const struct ackq *q) {
+    printf("%-32s  queued %6ld  begin %6ld  end %6ld\n",
            str, q->num_queued, q->begin, q->end);
 }

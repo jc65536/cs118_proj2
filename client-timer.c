@@ -7,7 +7,7 @@ void handle_timer(union sigval args) {
     struct sendq *sendq = targs->sendq;
     struct retransq *retransq = targs->retransq;
 
-    printf("Timer handler!!\n");
+    printf("Timeout!!\n");
     
     const struct packet *p = sendq_oldest_packet(sendq);
 

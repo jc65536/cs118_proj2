@@ -51,6 +51,7 @@ void *receive_acks(struct receiver_args *args) {
         } else {
             dupcount++;
             if (dupcount == 3) {
+                printf("3 duplicate acks!\n");
                 retransq_push(retransq, sendq_oldest_packet(sendq)->seqnum);
             }
         }

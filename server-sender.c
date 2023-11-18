@@ -9,7 +9,7 @@ void send_one(const struct packet *p, size_t packet_size) {
     ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
 
     if (bytes_sent == -1)
-        printf("Error sending ACK\n");
+        printf("Error sending ack\n");
 }
 
 void *send_acks(struct sender_args *args) {

@@ -39,4 +39,6 @@ extern const int HEADER_SIZE;
 
 bool is_final(const struct packet *p);
 
+const char *format(const char *fmt, ...);
+
 #endif
