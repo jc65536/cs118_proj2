@@ -70,14 +70,14 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
-        debug_recvq(format("Out of bounds %ld", packet_index), b);
+        debug_recvbuf(format("Out of bounds %ld", packet_index), b);
         return ERR;
     }
 
     struct recv_slot *slot = recvbuf_get_slot(b, packet_index);
 
     if (slot->filled) {
-        debug_recvq(format("Duplicate %ld", packet_index), b);
+        debug_recvbuf(format("Duplicate %ld", packet_index), b);
         return ERR;
     }
 
@@ -110,7 +110,7 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
         b->rwnd -= end_inc;
     }
 
-    debug_recvq(format("Received %ld", packet_index), b);
+    debug_recvbuf(format("Received %ld", packet_index), b);
 
     return ret;
 }
@@ -129,7 +129,7 @@ bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t))
     b->begin++;
     b->rwnd++;
 
-    debug_recvq("Wrote", b);
+    debug_recvbuf("Wrote", b);
     return true;
 }
 
@@ -185,12 +185,12 @@ bool ackq_pop(struct ackq *q, bool (*cont)(uint32_t)) {
 
 // Debug
 
-void debug_recvq(const char *str, const struct recvbuf *q) {
-    printf("%-32s  rwnd %6ld  begin %6ld  end %6ld  ack_index %6ld  acknum %8d\n",
-           str, q->rwnd, q->begin, q->end, q->ack_index, q->acknum);
+void debug_recvbuf(const char *str, const struct recvbuf *b) {
+    printf("[recvbuf] %-32s  rwnd %6ld  begin %6ld  end %6ld  ack_index %6ld  acknum %8d\n",
+           str, b->rwnd, b->begin, b->end, b->ack_index, b->acknum);
 }
 
 void debug_ackq(const char *str, const struct ackq *q) {
-    printf("%-32s  queued %6ld  begin %6ld  end %6ld\n",
+    printf("[ackq] %-32s  queued %6ld  begin %6ld  end %6ld\n",
            str, q->num_queued, q->begin, q->end);
 }

@@ -36,19 +36,26 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum);
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t));
 
 /* If possible, pass the packet specified by seqnum to cont. Returns whether the
- * seqnum was valid.
+ * seqnum was valid and cont was successful.
  */
 bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
+/* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
+ */
 const struct packet *sendq_oldest_packet(const struct sendq *q);
 
 struct retransq;
 
 struct retransq *retransq_new();
 
+/* If possible, push seqnum onto q. Returns whether the push was successful.
+ */
 bool retransq_push(struct retransq *q, uint32_t seqnum);
 
+/* If possible, call cont to process the next seqnum, then pop q. Returns whether
+ * a seqnum was popped and cont was successful.
+ */
 bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t));
 
 // Thread routines
