@@ -26,14 +26,14 @@ struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
 }
 
-bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *)) {
+bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
     if (q->num_queued == SENDQ_CAPACITY) {
         return false;
     }
 
     struct sendq_slot *slot = sendq_get_slot(q, q->end);
 
-    if (!cont(&slot->packet, &slot->packet_size))
+    if (!write(&slot->packet, &slot->packet_size))
         return false;
 
     q->end++;
@@ -57,7 +57,7 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     q->in_flight -= num_popped;
     q->num_queued -= num_popped;
 
-    debug_sendq(format("Received ack %d", acknum), q);
+    debug_sendq(format("Received ack %d", ack_index), q);
     return q->in_flight;
 }
 

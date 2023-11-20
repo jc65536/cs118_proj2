@@ -16,13 +16,13 @@ struct recvq *recvq_new() {
     return q;
 }
 
-bool recvq_write(struct recvq *q, void (*cont)(struct packet *, size_t *)) {
+bool recvq_write(struct recvq *q, void (*write)(struct packet *, size_t *)) {
     if (q->num_queued == RECVQ_CAPACITY) {
         return false;
     }
 
     struct recvq_slot *slot = &q->buf[q->end % RECVQ_CAPACITY];
-    cont(&slot->packet, &slot->packet_size);
+    write(&slot->packet, &slot->packet_size);
 
     q->end++;
     q->num_queued++;
@@ -66,7 +66,7 @@ struct recv_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
-enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t payload_size) {
+enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
@@ -105,9 +105,9 @@ enum recv_type recvbuf_write(struct recvbuf *b, const struct packet *p, size_t p
     }
 
     if (b->end <= packet_index) {
-        size_t rwnd_decrement = packet_index + 1 - b->end;
-        b->end = packet_index + 1;
-        b->rwnd -= rwnd_decrement;
+        size_t end_inc = packet_index + 1 - b->end;
+        b->end += end_inc;
+        b->rwnd -= end_inc;
     }
 
     debug_recvq(format("Received %ld", packet_index), b);
@@ -133,54 +133,53 @@ bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t))
     return true;
 }
 
+uint16_t recvbuf_get_rwnd(const struct recvbuf *b) {
+    return b->rwnd;
+}
+
+uint32_t recvbuf_get_acknum(const struct recvbuf *b) {
+    return b->acknum;
+}
+
 struct ackq {
     atomic_size_t num_queued;
     atomic_size_t begin;
     atomic_size_t end;
-    struct ack_slot {
-        struct packet packet;
-        size_t packet_size;
-    } *buf;
+    uint32_t buf[ACKQ_CAPACITY];
 };
 
 struct ackq *ackq_new() {
-    struct ackq *q = calloc(1, sizeof(struct ackq));
-    q->buf = calloc(ACKQ_CAPACITY, sizeof(q->buf[0]));
-    return q;
+    return calloc(1, sizeof(struct ackq));
 }
 
-bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf) {
+bool ackq_push(struct ackq *q, uint32_t acknum) {
     if (q->num_queued == ACKQ_CAPACITY) {
         return false;
     }
 
-    struct ack_slot *slot = &q->buf[q->end % ACKQ_CAPACITY];
-
-    slot->packet_size = HEADER_SIZE;
-    slot->packet.seqnum = recvbuf->acknum;
-    slot->packet.rwnd = recvbuf->rwnd;
+    q->buf[q->end % ACKQ_CAPACITY] = acknum;
 
     q->end++;
     q->num_queued++;
 
-    debug_ackq(format("Queued ack %d", slot->packet.seqnum / MAX_PAYLOAD_SIZE), q);
+    debug_ackq(format("Queued ack %d", acknum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 
-bool ackq_pop(struct ackq *q, bool (*cont)(const struct packet *, size_t)) {
+bool ackq_pop(struct ackq *q, bool (*cont)(uint32_t)) {
     if (q->num_queued == 0) {
         return false;
     }
 
-    struct ack_slot *slot = &q->buf[q->begin % ACKQ_CAPACITY];
+    uint32_t acknum = q->buf[q->begin % ACKQ_CAPACITY];
 
-    if (!cont(&slot->packet, slot->packet_size))
+    if (!cont(acknum))
         return false;
 
     q->begin++;
     q->num_queued--;
 
-    debug_ackq(format("Sent ack %d", slot->packet.seqnum / MAX_PAYLOAD_SIZE), q);
+    debug_ackq(format("Sent ack %d", acknum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 

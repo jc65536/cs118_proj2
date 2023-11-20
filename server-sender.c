@@ -4,9 +4,15 @@
 #include "server.h"
 
 static int send_sockfd;
+static struct recvbuf *recvbuf;
 
-bool send_one(const struct packet *p, size_t packet_size) {
-    ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
+bool send_one(uint32_t acknum) {
+    static struct packet p = {};
+
+    p.rwnd = recvbuf_get_rwnd(recvbuf);
+    p.seqnum = acknum;
+
+    ssize_t bytes_sent = send(send_sockfd, &p, HEADER_SIZE, 0);
 
     if (bytes_sent == -1) {
         printf("Error sending ack\n");
@@ -18,6 +24,7 @@ bool send_one(const struct packet *p, size_t packet_size) {
 
 void *send_acks(struct sender_args *args) {
     struct ackq *ackq = args->ackq;
+    recvbuf = args->recvbuf;
 
     // Create a UDP socket for sending
     send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);

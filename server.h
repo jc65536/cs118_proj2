@@ -12,7 +12,7 @@
 struct recvq;
 
 struct recvq *recvq_new();
-bool recvq_write(struct recvq *q, void (*cont)(struct packet *, size_t *));
+bool recvq_write(struct recvq *q, void (*write)(struct packet *, size_t *));
 bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 
 struct recvbuf;
@@ -24,14 +24,16 @@ enum recv_type {
 };
 
 struct recvbuf *recvbuf_new();
-enum recv_type recvbuf_write(struct recvbuf *q, const struct packet *p, size_t payload_size);
-bool recvbuf_pop(struct recvbuf *q, bool (*cont)(const struct packet *, size_t));
+enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
+bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t));
+uint16_t recvbuf_get_rwnd(const struct recvbuf *b);
+uint32_t recvbuf_get_acknum(const struct recvbuf *b);
 
 struct ackq;
 
 struct ackq *ackq_new();
-bool ackq_push(struct ackq *q, const struct recvbuf *recvbuf);
-bool ackq_pop(struct ackq *q, bool (*cont)(const struct packet *, size_t));
+bool ackq_push(struct ackq *q, uint32_t acknum);
+bool ackq_pop(struct ackq *q, bool (*cont)(uint32_t));
 
 // Thread routines
 
@@ -51,6 +53,7 @@ struct writer_args {
 
 struct sender_args {
     struct ackq *ackq;
+    struct recvbuf *recvbuf;
 };
 
 void *receive_packets(struct receiver_args *args);

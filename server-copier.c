@@ -8,7 +8,7 @@ static struct ackq *ackq;
 
 void copy_one(const struct packet *p, size_t packet_size) {
     size_t payload_size = packet_size - HEADER_SIZE;
-    enum recv_type status = recvbuf_write(recvbuf, p, payload_size);
+    enum recv_type status = recvbuf_push(recvbuf, p, payload_size);
 
     switch (status) {
     case END:
@@ -18,7 +18,7 @@ void copy_one(const struct packet *p, size_t packet_size) {
         break;
     }
 
-    ackq_push(ackq, recvbuf);
+    ackq_push(ackq, recvbuf_get_acknum(recvbuf));
 }
 
 void *copy_packets(struct copier_args *args) {

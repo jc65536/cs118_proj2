@@ -20,10 +20,10 @@ struct sendq;
 
 struct sendq *sendq_new();
 
-/* If possible, call cont to write a packet into q. Returns whether the write was
- * successful.
+/* If possible, call write to write a packet into q. Returns whether the write
+ * was successful.
  */
-bool sendq_write(struct sendq *q, bool (*cont)(struct packet *, size_t *));
+bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *));
 
 /* If possible, pop packets from q until acknum. Returns the remaining number of
  * in-flight packets (number of packets sent but not ACKed).

@@ -35,7 +35,7 @@ struct packet {
     char payload[MAX_PAYLOAD_SIZE];
 };
 
-extern const int HEADER_SIZE;
+#define HEADER_SIZE (offsetof(struct packet, payload))
 
 bool is_final(const struct packet *p);
 
