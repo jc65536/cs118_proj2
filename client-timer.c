@@ -9,6 +9,8 @@ void handle_timer(union sigval args) {
 
     printf("Timeout!!\n");
     
+    // p is the oldest in-flight packet, or NULL if there are no in-flight
+    // packets.
     const struct packet *p = sendq_oldest_packet(sendq);
 
     if (p)
