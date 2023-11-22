@@ -28,6 +28,7 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t));
 uint16_t recvbuf_get_rwnd(const struct recvbuf *b);
 uint32_t recvbuf_get_acknum(const struct recvbuf *b);
+size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size);
 
 struct ackq;
 

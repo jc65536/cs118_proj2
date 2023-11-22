@@ -9,6 +9,10 @@ struct sendq {
     atomic_size_t num_queued;
     atomic_size_t cwnd;
     atomic_size_t in_flight;
+    uint32_t seqnum;
+    size_t bytes_written;
+    struct sendq_slot *slot;
+
     struct sendq_slot {
         struct packet packet;
         size_t packet_size;
@@ -24,6 +28,48 @@ struct sendq *sendq_new() {
 
 struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
+}
+
+void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
+    while (!q->slot) {
+        if (q->num_queued < SENDQ_CAPACITY) {
+            q->slot = sendq_get_slot(q, q->end);
+            q->slot->packet_size = HEADER_SIZE;
+            q->slot->packet.seqnum = q->seqnum;
+            q->bytes_written = 0;
+        }
+    }
+
+    if (q->bytes_written + size < MAX_PAYLOAD_SIZE) {
+        memcpy(q->slot->packet.payload + q->bytes_written, src, size);
+        q->bytes_written += size;
+        q->slot->packet_size += size;
+        q->seqnum += size;
+    } else {
+        size_t rem_capacity = MAX_PAYLOAD_SIZE - q->bytes_written;
+        memcpy(q->slot->packet.payload + q->bytes_written, src, rem_capacity);
+        q->slot->packet_size = sizeof(struct packet);
+        q->seqnum += rem_capacity;
+        
+        sendq_flush_end(q, false);
+
+        if (size > rem_capacity)
+            sendq_fill_end(q, src + rem_capacity, size - rem_capacity);
+    }
+}
+
+bool sendq_flush_end(struct sendq *q, bool final) {
+    if (!q->slot)
+        return false;
+    
+    if (final)
+        q->slot->packet.flags = FLAG_FINAL;
+    
+    q->slot = NULL;
+    q->end++;
+    q->num_queued++;
+    debug_sendq("Read", q);
+    return true;
 }
 
 bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {

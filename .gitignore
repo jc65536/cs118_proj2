@@ -1,6 +1,9 @@
 ignore
 client
 server
+comp-test
 output.txt
+debug.txt
+gmon.out
 
 *.o

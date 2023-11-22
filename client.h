@@ -41,6 +41,9 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
+void sendq_fill_end(struct sendq *q, const char *src, size_t size);
+bool sendq_flush_end(struct sendq *q, bool final);
+
 /* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
  */
 const struct packet *sendq_oldest_packet(const struct sendq *q);

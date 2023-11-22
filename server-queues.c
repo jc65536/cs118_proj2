@@ -48,7 +48,11 @@ struct recvbuf {
     atomic_size_t end;
     atomic_size_t ack_index;
     _Atomic uint32_t acknum;
-    struct recv_slot {
+    size_t bytes_read;
+    struct recvbuf_slot *slot;
+    bool final_read;
+
+    struct recvbuf_slot {
         struct packet packet;
         size_t payload_size;
         bool filled;
@@ -62,7 +66,7 @@ struct recvbuf *recvbuf_new() {
     return b;
 }
 
-struct recv_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
+struct recvbuf_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
@@ -74,7 +78,7 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
         return ERR;
     }
 
-    struct recv_slot *slot = recvbuf_get_slot(b, packet_index);
+    struct recvbuf_slot *slot = recvbuf_get_slot(b, packet_index);
 
     if (slot->filled) {
         debug_recvbuf(format("Duplicate %ld", packet_index), b);
@@ -90,7 +94,7 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
     if (packet_index == b->ack_index) {
         size_t i = b->ack_index;
         uint32_t new_acknum = b->acknum;
-        const struct recv_slot *next_slot;
+        const struct recvbuf_slot *next_slot;
 
         while ((next_slot = recvbuf_get_slot(b, i))->filled) {
             new_acknum += next_slot->payload_size;
@@ -115,12 +119,39 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
     return ret;
 }
 
+size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size) {
+    if (b->final_read)
+        return 0;
+
+    while (!b->slot) {
+        if (b->begin < b->ack_index) {
+            b->slot = recvbuf_get_slot(b, b->begin);
+            b->bytes_read = 0;
+        }
+    }
+
+    if (b->bytes_read + size < b->slot->payload_size) {
+        memcpy(dest, b->slot->packet.payload + b->bytes_read, size);
+        b->bytes_read += size;
+        return size;
+    } else {
+        size_t rem_capacity = b->slot->payload_size - b->bytes_read;
+        memcpy(dest, b->slot->packet.payload + b->bytes_read, rem_capacity);
+        b->final_read = is_final(&b->slot->packet);
+        b->slot->filled = false;
+        b->slot = NULL;
+        b->begin++;
+        b->rwnd++;
+        return rem_capacity;
+    }
+}
+
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
     if (b->begin == b->ack_index) {
         return false;
     }
 
-    struct recv_slot *slot = recvbuf_get_slot(b, b->begin);
+    struct recvbuf_slot *slot = recvbuf_get_slot(b, b->begin);
     slot->filled = false;
 
     if (!cont(&slot->packet, slot->payload_size))

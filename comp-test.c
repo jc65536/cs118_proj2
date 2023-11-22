@@ -1,0 +1,40 @@
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
+#include "compression.h"
+
+#define BUF_SIZE 128
+
+static int fd_out;
+static int fd_in;
+
+size_t read_in(char *c, size_t req) {
+    return read(fd_in, c, req);
+}
+
+void write_out(const char *c, size_t s) {
+    write(fd_out, c, s);
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2)
+        return 1;
+
+    fd_in = open(argv[1], O_RDONLY);
+    fd_out = creat("output.txt", S_IRUSR | S_IWUSR);
+
+    compress(read_in, write_out);
+    
+    close(fd_in);
+    close(fd_out);
+
+    printf("====\n");
+
+    fd_in = open("output.txt", O_RDONLY);
+    fd_out = creat("decode.txt", S_IRUSR | S_IWUSR);
+
+    decompress(read_in, write_out);
+}

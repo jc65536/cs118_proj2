@@ -1,33 +1,26 @@
 #include <stdio.h>
 
 #include "server.h"
+#include "compression.h"
 
-static bool wrote_final;
+static struct recvbuf *recvbuf;
 static FILE *fp;
 
-bool write_one(const struct packet *p, size_t payload_size) {
-    if (is_final(p))
-        wrote_final = true;
+void write_file_(const char *src, size_t size) {
+    fwrite(src, sizeof(char), size, fp);
+}
 
-    size_t bytes_written = fwrite(p->payload, sizeof(char), payload_size, fp);
-
-    if (bytes_written != payload_size) {
-        perror("Error writing output");
-        return false;
-    }
-
-    return true;
+size_t read_decompressed(char *dest, size_t size) {
+    return recvbuf_take_begin(recvbuf, dest, size);
 }
 
 void *write_file(struct writer_args *args) {
-    struct recvbuf *recvbuf = args->recvbuf;
+    recvbuf = args->recvbuf;
 
     // Open the target file for writing (always write to output.txt)
     fp = fopen("output.txt", "wb");
 
-    wrote_final = false;
-    while (!wrote_final)
-        recvbuf_pop(recvbuf, write_one);
+    decompress(read_decompressed, write_file_);
 
     printf("Wrote last packet\n");
     fclose(fp);

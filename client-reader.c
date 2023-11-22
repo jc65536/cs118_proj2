@@ -1,34 +1,22 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "client.h"
+#include "compression.h"
 
-static bool read_final;
 static FILE *fp;
-uint32_t seqnum;
+static struct sendq *sendq;
 
-bool read_one(struct packet *p, size_t *packet_size) {
-    size_t bytes_read = fread(p->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
+size_t read_file_(char *dest, size_t req_size) {
+    return fread(dest, sizeof(char), req_size, fp);
+}
 
-    if (bytes_read != MAX_PAYLOAD_SIZE) {
-        if (feof(fp)) {
-            p->flags = FLAG_FINAL;
-            read_final = true;
-        } else {
-            perror("Error reading file");
-            return false;
-        }
-    } else {
-        p->flags = 0;
-    }
-
-    p->seqnum = seqnum;
-    *packet_size = HEADER_SIZE + bytes_read;
-    seqnum += bytes_read;
-    return true;
+void write_compressed(const char *src, size_t size) {
+    sendq_fill_end(sendq, src, size);
 }
 
 void *read_file(struct reader_args *args) {
-    struct sendq *sendq = args->sendq;
+    sendq = args->sendq;
     const char *filename = args->filename;
 
     // Open file for reading
@@ -40,10 +28,9 @@ void *read_file(struct reader_args *args) {
 
     printf("Opened file %s\n", filename);
 
-    read_final = false;
-    seqnum = 0;
-    while (!read_final)
-        sendq_write(sendq, read_one);
+    compress(read_file_, write_compressed);
+
+    sendq_flush_end(sendq, true);
 
     printf("Finished reading file\n");
     return NULL;

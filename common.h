@@ -22,7 +22,6 @@
 #define NUM_THREADS 4
 
 #define FLAG_FINAL 0b00000001
-#define FLAG_TERM  0b00000010
 
 typedef void *(*voidfn)(void *);
 
