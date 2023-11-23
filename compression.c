@@ -8,10 +8,14 @@
 #include "compression.h"
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
-#define MAX_NUM_CODES (UINT16_MAX + 1)
+#define MAX_NUM_CODES 65536
 #define BUF_SIZE 8192
 
-typedef uint16_t code_t;
+typedef uint32_t code_t;
+
+size_t bytes_to_fit(code_t code) {
+    return code <= UCHAR_MAX ? 1 : 1 + bytes_to_fit(code >> CHAR_BIT);
+}
 
 struct trie_node {
     code_t code;
@@ -43,7 +47,8 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
     size_t buf_size = 0;
     struct trie_node *root = tnode_new(0);
     struct trie_node **refs = calloc(MAX_NUM_CODES, sizeof(refs[0]));
-    code_t next_code = ALPHABET_SIZE;
+    code_t num_codes = ALPHABET_SIZE;
+    unsigned int code_width = 1;
     bool need_alloc = true;
 
     // Initialize the dictionary to contain all strings of length one
@@ -63,32 +68,35 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 m = match(m.node, buf, end);
             } else {
                 // If buffer can't be refilled, write the match and finish
-                write((const char *) &m.node->code, sizeof(code_t));
+                write((const char *) &m.node->code, code_width);
                 return;
             }
         }
 
-        write((const char *) &m.node->code, sizeof(code_t));
+        write((const char *) &m.node->code, code_width);
 
-        if (next_code > 0) {
+        if (num_codes < MAX_NUM_CODES) {
             // There's space, so create a new leaf node representing a dictionary entry
             if (need_alloc) {
-                refs[next_code] = tnode_new(next_code);
+                refs[num_codes] = tnode_new(num_codes);
             } else {
                 // We don't even need to update the code, since we're getting
                 // the nodes in the same order as they were created
-                memset(refs[next_code]->children, 0, sizeof(root->children));
+                memset(refs[num_codes]->children, 0, sizeof(root->children));
             }
 
-            m.node->children[(unsigned char) *m.next] = refs[next_code];
-            next_code++;
+            m.node->children[(unsigned char) *m.next] = refs[num_codes];
+            code_width = bytes_to_fit(num_codes);
+            num_codes++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
             for (int i = 0; i < ALPHABET_SIZE; i++)
                 memset(root->children[i]->children, 0, sizeof(root->children));
 
-            next_code = ALPHABET_SIZE;
+            code_width = 1;
+            num_codes = ALPHABET_SIZE;
             need_alloc = false;
+            printf("Encode: Reset!\n");
         }
     }
 }
@@ -120,6 +128,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
     size_t buf_size = 0;
     struct dict_node *dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
     code_t num_codes = ALPHABET_SIZE;
+    unsigned int code_width = 1;
 
     // Initialize the dictionary to contain all strings of length one
     for (int i = 0; i < ALPHABET_SIZE; i++)
@@ -127,46 +136,57 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
     const struct dict_node *prev = NULL;
     char first_char = '\0';
-    const code_t *next = (const code_t *) buf;
-    const code_t *end = next;
+    const char *next = buf;
+    const char *end = next;
 
     while (true) {
-        if (next == end) {
+        size_t diff = end - next;
+        if (diff < code_width) {
+            memcpy(buf, next, diff);
             // Refill buffer when we exhaust it
-            buf_size = read(buf, BUF_SIZE);
-            if (!buf_size)
+            buf_size = diff + read(buf + diff, BUF_SIZE - diff);
+            if (buf_size == diff)
                 return;
-            next = (const code_t *) buf;
-            end = next + buf_size / sizeof(code_t);
+            next = buf;
+            end = next + buf_size;
         }
 
-        if (*next < num_codes) {
-            // The next code is in the dictionary; we can look it up
-            const struct dict_node *node = dict + *next;
+        code_t in_code = 0;
+        memcpy(&in_code, next, code_width);
+        printf("Decode: %6d (", in_code);
+        for (int i = 0; i < code_width; i++)
+            printf("%02x ", next[i] & 0xff);
+        printf(") %d\n", num_codes);
+        next += code_width;
+
+        struct dict_node *node;
+        if (in_code < num_codes) {
+            // The input code is in the dictionary; we can look it up
+            node = dict + in_code;
             first_char = process_str(node, write);
             if (prev) {
                 dict[num_codes] = dnode_new(first_char, prev);
                 num_codes++;
             }
-            prev = node;
-        } else if (num_codes > 0) {
-            // The next code is not in the dictionary; we can infer its string
-            struct dict_node *new_node = dict + num_codes;
-            *new_node = dnode_new(first_char, prev);
-            first_char = process_str(new_node, write);
-            prev = new_node;
-            num_codes++;
         } else {
+            // The input code is not in the dictionary; we can infer its string
+            node = dict + num_codes;
+            *node = dnode_new(first_char, prev);
+            first_char = process_str(node, write);
+            num_codes++;
+        }
+        code_width = bytes_to_fit(num_codes);
+        prev = node;
+
+        if (num_codes == MAX_NUM_CODES) {
             // If the dictionary is full, we need to clear it. We also know that
             // the next code will be a single-character code, since the
             // compressor also cleared its dictionary.
-            struct dict_node *node = dict + *next;
-            write(&node->c, 1);
-            prev = node;
             num_codes = ALPHABET_SIZE;
+            code_width = 1;
+            prev = NULL;
+            printf("Decode: Reset!\n");
         }
-
-        next++;
     }
 }
 
