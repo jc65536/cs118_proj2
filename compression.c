@@ -13,31 +13,6 @@
 
 typedef uint32_t code_t;
 
-struct trie_node {
-    code_t code;
-    struct trie_node *children[ALPHABET_SIZE];
-};
-
-struct trie_node *tnode_new(code_t code) {
-    struct trie_node *node = calloc(1, sizeof(struct trie_node));
-    node->code = code;
-    return node;
-}
-
-struct match_result {
-    struct trie_node *node;
-    const char *next;
-};
-
-struct match_result match(struct trie_node *node, const char *next, const char *end) {
-    struct trie_node *next_node;
-
-    if (next != end && (next_node = node->children[(unsigned char) *next]))
-        return match(next_node, next + 1, end);
-    else
-        return (struct match_result){node, next};
-}
-
 struct bitbuf {
     uint64_t buf;
     unsigned int num_bits;
@@ -58,7 +33,7 @@ void write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
     }
 }
 
-void flush(void (*write)(const char *, size_t), struct bitbuf *b) {
+void flush_wrapper(void (*write)(const char *, size_t), struct bitbuf *b) {
     write((char *) &b->buf, ((int) b->num_bits - 1) / CHAR_BIT + 1);
 }
 
@@ -86,6 +61,40 @@ struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b
     }
 
     return (struct read_result) {c & ~(~(code_t) 0 << w), false};
+}
+
+struct trie_node {
+    code_t code;
+    struct trie_node *children[ALPHABET_SIZE];
+};
+
+struct trie_node *tnode_new(code_t code) {
+    struct trie_node *node = calloc(1, sizeof(struct trie_node));
+    node->code = code;
+    return node;
+}
+
+void tnode_free(struct trie_node *t) {
+    if (!t)
+        return;
+    
+    for (int i = 0; i < ALPHABET_SIZE; i++)
+        tnode_free(t->children[i]);
+    
+    free(t);
+}
+
+struct match_result {
+    struct trie_node *node;
+    const char *next;
+};
+
+struct match_result match(struct trie_node *node, const char *next, const char *end) {
+    struct trie_node *next_node;
+    if (next != end && (next_node = node->children[(unsigned char) *next]))
+        return match(next_node, next + 1, end);
+    else
+        return (struct match_result){node, next};
 }
 
 void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
@@ -116,8 +125,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
             } else {
                 // If buffer can't be refilled, write the match and finish
                 write_wrapper(write, &bitbuf, m.node->code, code_width);
-                flush(write, &bitbuf);
-                return;
+                goto cleanup;
             }
         }
 
@@ -149,7 +157,12 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
             need_alloc = false;
         }
     }
-    flush(write, &bitbuf);
+
+cleanup:
+    flush_wrapper(write, &bitbuf);
+    free(buf);
+    free(root);
+    free(refs);
 }
 
 struct dict_node {
@@ -191,7 +204,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
         struct read_result result = read_wrapper(read, &bitbuf, code_width);
 
         if (result.done)
-            return;
+            break;
         
         code_t in_code = result.code;
 
@@ -235,6 +248,8 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             prev = NULL;
         }
     }
+
+    free(dict);
 }
 
 void dummy(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
