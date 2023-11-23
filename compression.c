@@ -32,10 +32,10 @@ struct match_result {
 struct match_result match(struct trie_node *node, const char *next, const char *end) {
     struct trie_node *next_node;
 
-    if (next == end || !(next_node = node->children[(unsigned char) *next]))
-        return (struct match_result){node, next};
-    else
+    if (next != end && (next_node = node->children[(unsigned char) *next]))
         return match(next_node, next + 1, end);
+    else
+        return (struct match_result){node, next};
 }
 
 void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {

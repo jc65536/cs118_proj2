@@ -11,8 +11,8 @@
 static int fd_out;
 static int fd_in;
 
-size_t read_in(char *c, size_t req) {
-    return read(fd_in, c, req);
+size_t read_in(char *c, size_t s) {
+    return read(fd_in, c, s);
 }
 
 void write_out(const char *c, size_t s) {
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     close(fd_in);
     close(fd_out);
 
-    fd_in = open("compressd.lzw", O_RDONLY);
+    fd_in = open("compressed.lzw", O_RDONLY);
     fd_out = creat("decoded.txt", S_IRUSR | S_IWUSR);
 
     decompress(read_in, write_out);
