@@ -9,12 +9,12 @@
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
 #define MAX_NUM_CODES 65536
-#define BUF_SIZE 8192
+#define BUF_SIZE 128
 
 typedef uint32_t code_t;
 
-size_t bytes_to_fit(code_t code) {
-    return code <= UCHAR_MAX ? 1 : 1 + bytes_to_fit(code >> CHAR_BIT);
+unsigned int bits_to_fit(code_t code) {
+    return code <= 1 ? 1 : 1 + bits_to_fit(code >> 1);
 }
 
 struct trie_node {
@@ -42,14 +42,66 @@ struct match_result match(struct trie_node *node, const char *next, const char *
         return (struct match_result){node, next};
 }
 
+struct bitbuf {
+    uint64_t buf;
+    unsigned int num_bits;
+};
+
+void write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
+                   code_t c, unsigned int w) {
+    printf("%d %d\n", c, w);
+    if (b->num_bits + w <= 64) {
+        b->buf = (b->buf << w) | c;
+        b->num_bits += w;
+    } else {
+        unsigned int rem_capacity = 64 - b->num_bits;
+        unsigned int extra_bits = w - rem_capacity;
+        b->buf = (b->buf << rem_capacity) | (c >> extra_bits);
+        write((char *) &b->buf, sizeof(b->buf));
+        b->buf = c & ~(~(code_t) 0 << extra_bits);
+        b->num_bits = extra_bits;
+    }
+}
+
+void flush(void (*write)(const char *, size_t), struct bitbuf *b) {
+    write((char *) &b->buf, ((int) b->num_bits - 1) / CHAR_BIT + 1);
+}
+
+struct read_result {
+    code_t code;
+    bool done;
+};
+
+struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned int w) {
+    code_t c;
+    if (w <= b->num_bits) {
+        c = b->buf >> (b->num_bits - w);
+        b->num_bits -= w;
+    } else {
+        unsigned int missing_bits = w - b->num_bits;
+        c = b->buf << missing_bits;
+        b->buf = 0;
+        b->num_bits = read((char *) &b->buf, sizeof(b->buf)) * CHAR_BIT;
+
+        if (b->num_bits < missing_bits)
+            return (struct read_result) {c, true};
+
+        c |= b->buf >> (b->num_bits - missing_bits);
+        b->num_bits -= missing_bits;
+    }
+
+    return (struct read_result) {c, false};
+}
+
 void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     char *buf = malloc(BUF_SIZE);
     size_t buf_size = 0;
     struct trie_node *root = tnode_new(0);
     struct trie_node **refs = calloc(MAX_NUM_CODES, sizeof(refs[0]));
     code_t num_codes = ALPHABET_SIZE;
-    unsigned int code_width = 1;
+    unsigned int code_width = CHAR_BIT;
     bool need_alloc = true;
+    struct bitbuf bitbuf = {};
 
     // Initialize the dictionary to contain all strings of length one
     for (int i = 0; i < ALPHABET_SIZE; i++)
@@ -68,12 +120,13 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 m = match(m.node, buf, end);
             } else {
                 // If buffer can't be refilled, write the match and finish
-                write((const char *) &m.node->code, code_width);
+                write_wrapper(write, &bitbuf, m.node->code, code_width);
+                flush(write, &bitbuf);
                 return;
             }
         }
 
-        write((const char *) &m.node->code, code_width);
+        write_wrapper(write, &bitbuf, m.node->code, code_width);
 
         if (num_codes < MAX_NUM_CODES) {
             // There's space, so create a new leaf node representing a dictionary entry
@@ -86,19 +139,19 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
             }
 
             m.node->children[(unsigned char) *m.next] = refs[num_codes];
-            code_width = bytes_to_fit(num_codes);
+            code_width = bits_to_fit(num_codes);
             num_codes++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
             for (int i = 0; i < ALPHABET_SIZE; i++)
                 memset(root->children[i]->children, 0, sizeof(root->children));
 
-            code_width = 1;
+            code_width = CHAR_BIT;
             num_codes = ALPHABET_SIZE;
             need_alloc = false;
-            printf("Encode: Reset!\n");
         }
     }
+    flush(write, &bitbuf);
 }
 
 struct dict_node {
@@ -124,11 +177,10 @@ char process_str(const struct dict_node *node, void (*write)(const char *, size_
 }
 
 void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
-    char *buf = malloc(BUF_SIZE);
-    size_t buf_size = 0;
     struct dict_node *dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
     code_t num_codes = ALPHABET_SIZE;
-    unsigned int code_width = 1;
+    unsigned int code_width = CHAR_BIT;
+    struct bitbuf bitbuf = {};
 
     // Initialize the dictionary to contain all strings of length one
     for (int i = 0; i < ALPHABET_SIZE; i++)
@@ -136,28 +188,14 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
     const struct dict_node *prev = NULL;
     char first_char = '\0';
-    const char *next = buf;
-    const char *end = next;
 
     while (true) {
-        size_t diff = end - next;
-        if (diff < code_width) {
-            memcpy(buf, next, diff);
-            // Refill buffer when we exhaust it
-            buf_size = diff + read(buf + diff, BUF_SIZE - diff);
-            if (buf_size == diff)
-                return;
-            next = buf;
-            end = next + buf_size;
-        }
+        struct read_result result = read_wrapper(read, &bitbuf, code_width);
 
-        code_t in_code = 0;
-        memcpy(&in_code, next, code_width);
-        printf("Decode: %6d (", in_code);
-        for (int i = 0; i < code_width; i++)
-            printf("%02x ", next[i] & 0xff);
-        printf(") %d\n", num_codes);
-        next += code_width;
+        if (result.done)
+            return;
+        
+        code_t in_code = result.code;
 
         struct dict_node *node;
         if (in_code < num_codes) {
@@ -175,7 +213,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             first_char = process_str(node, write);
             num_codes++;
         }
-        code_width = bytes_to_fit(num_codes);
+        code_width = bits_to_fit(num_codes);
         prev = node;
 
         if (num_codes == MAX_NUM_CODES) {
@@ -183,9 +221,8 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             // the next code will be a single-character code, since the
             // compressor also cleared its dictionary.
             num_codes = ALPHABET_SIZE;
-            code_width = 1;
+            code_width = CHAR_BIT;
             prev = NULL;
-            printf("Decode: Reset!\n");
         }
     }
 }

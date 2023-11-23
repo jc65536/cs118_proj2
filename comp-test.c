@@ -16,10 +16,6 @@ size_t read_in(char *c, size_t s) {
 }
 
 void write_out_print(const char *c, size_t s) {
-    printf("Encode: ");
-    for (int i = 0; i < s; i++)
-        printf("%02x ", c[i] & 0xff);
-    printf("\n");
     write(fd_out, c, s);
 }
 
