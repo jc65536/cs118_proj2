@@ -2,7 +2,7 @@
 
 make clean
 make comp-test
-./comp-test input2.txt > debug.txt
+./comp-test input.txt > /dev/null
 # grep -E "^Encode" debug.txt > encode.txt
 # grep -E "^Decode" debug.txt > decode.txt
-diff --brief input2.txt decoded.txt
+diff --brief input.txt decoded.txt

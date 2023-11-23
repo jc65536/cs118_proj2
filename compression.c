@@ -49,7 +49,6 @@ struct bitbuf {
 
 void write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
                    code_t c, unsigned int w) {
-    printf("%d %d\n", c, w);
     if (b->num_bits + w <= 64) {
         b->buf = (b->buf << w) | c;
         b->num_bits += w;
@@ -84,13 +83,13 @@ struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b
         b->num_bits = read((char *) &b->buf, sizeof(b->buf)) * CHAR_BIT;
 
         if (b->num_bits < missing_bits)
-            return (struct read_result) {c, true};
+            return (struct read_result) {'\0', true};
 
         c |= b->buf >> (b->num_bits - missing_bits);
         b->num_bits -= missing_bits;
     }
 
-    return (struct read_result) {c, false};
+    return (struct read_result) {c & ~(~(code_t) 0 << w), false};
 }
 
 void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
