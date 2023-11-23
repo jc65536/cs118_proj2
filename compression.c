@@ -43,7 +43,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
     size_t buf_size = 0;
     struct trie_node *root = tnode_new(0);
     struct trie_node **refs = calloc(MAX_NUM_CODES, sizeof(refs[0]));
-    code_t next_id = ALPHABET_SIZE;
+    code_t next_code = ALPHABET_SIZE;
     bool need_alloc = true;
 
     // Initialize the dictionary to contain all strings of length one
@@ -70,21 +70,24 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
 
         write((const char *) &m.node->code, sizeof(code_t));
 
-        if (next_id > 0) {
+        if (next_code > 0) {
             // There's space, so create a new leaf node representing a dictionary entry
-            if (need_alloc)
-                refs[next_id] = tnode_new(next_id);
-            else
-                memset(refs[next_id]->children, 0, sizeof(root->children));
+            if (need_alloc) {
+                refs[next_code] = tnode_new(next_code);
+            } else {
+                // We don't even need to update the code, since we're getting
+                // the nodes in the same order as they were created
+                memset(refs[next_code]->children, 0, sizeof(root->children));
+            }
 
-            m.node->children[(unsigned char) *m.next] = refs[next_id];
-            next_id++;
+            m.node->children[(unsigned char) *m.next] = refs[next_code];
+            next_code++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
             for (int i = 0; i < ALPHABET_SIZE; i++)
                 memset(root->children[i]->children, 0, sizeof(root->children));
 
-            next_id = ALPHABET_SIZE;
+            next_code = ALPHABET_SIZE;
             need_alloc = false;
         }
     }
