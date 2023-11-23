@@ -9,7 +9,7 @@
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
 #define MAX_NUM_CODES 65536
-#define BUF_SIZE 128
+#define BUF_SIZE 8192
 
 typedef uint32_t code_t;
 
@@ -196,6 +196,15 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
         
         code_t in_code = result.code;
 
+        /* Wab - Match W - Emit w - Add Wa (full)
+         * Xb  - Match X - Emit x - Clear  (X = aY)
+         * b   - Match b - Emit b
+         * 
+         * Read w - Emit W  - Add something
+         * Read x - Emit Xb - Add Wa (full) - Clear
+         * Read b - Emit b
+         */
+
         struct dict_node *node;
         if (in_code < num_codes) {
             // The input code is in the dictionary; we can look it up
@@ -206,7 +215,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
                 num_codes++;
             }
         } else {
-            // The input code is not in the dictionary; we can infer its string
+            // The input code is not in the dictionary; we can infer it
             node = dict + num_codes;
             *node = dnode_new(first_char, prev);
             first_char = process_str(node, write);
