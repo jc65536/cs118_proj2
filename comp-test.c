@@ -24,17 +24,15 @@ int main(int argc, char **argv) {
         return 1;
 
     fd_in = open(argv[1], O_RDONLY);
-    fd_out = creat("output.txt", S_IRUSR | S_IWUSR);
+    fd_out = creat("compressed.lzw", S_IRUSR | S_IWUSR);
 
     compress(read_in, write_out);
     
     close(fd_in);
     close(fd_out);
 
-    printf("====\n");
-
-    fd_in = open("output.txt", O_RDONLY);
-    fd_out = creat("decode.txt", S_IRUSR | S_IWUSR);
+    fd_in = open("compressd.lzw", O_RDONLY);
+    fd_out = creat("decoded.txt", S_IRUSR | S_IWUSR);
 
     decompress(read_in, write_out);
 }

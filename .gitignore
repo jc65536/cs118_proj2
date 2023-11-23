@@ -2,8 +2,7 @@ ignore
 client
 server
 comp-test
-output.txt
-debug.txt
+*.txt
 gmon.out
-
+compressed.lzw
 *.o
