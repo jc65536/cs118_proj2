@@ -13,10 +13,6 @@
 
 typedef uint32_t code_t;
 
-unsigned int bits_to_fit(code_t code) {
-    return code <= 1 ? 1 : 1 + bits_to_fit(code >> 1);
-}
-
 struct trie_node {
     code_t code;
     struct trie_node *children[ALPHABET_SIZE];
@@ -138,7 +134,10 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
             }
 
             m.node->children[(unsigned char) *m.next] = refs[num_codes];
-            code_width = bits_to_fit(num_codes);
+
+            if (num_codes >= (code_t) 1 << code_width)
+                code_width++;
+
             num_codes++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
@@ -221,7 +220,10 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             first_char = process_str(node, write);
             num_codes++;
         }
-        code_width = bits_to_fit(num_codes);
+
+        if (num_codes >= (code_t) 1 << code_width)
+            code_width++;
+        
         prev = node;
 
         if (num_codes == MAX_NUM_CODES) {
