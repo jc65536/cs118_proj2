@@ -119,7 +119,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
         dict[i] = dnode_new(i, NULL);
 
     const struct dict_node *prev = NULL;
-    char first_char;
+    char first_char = '\0';
     const code_t *next = (const code_t *) buf;
     const code_t *end = next;
 
