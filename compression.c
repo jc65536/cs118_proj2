@@ -9,7 +9,7 @@
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
 #define MAX_NUM_CODES (UINT16_MAX + 1)
-#define BUF_SIZE 128
+#define BUF_SIZE 8192
 
 typedef uint16_t code_t;
 
@@ -44,6 +44,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
     struct trie_node *root = tnode_new(0);
     struct trie_node **refs = calloc(MAX_NUM_CODES, sizeof(refs[0]));
     code_t next_id = ALPHABET_SIZE;
+    bool need_alloc = true;
 
     // Initialize the dictionary to contain all strings of length one
     for (int i = 0; i < ALPHABET_SIZE; i++)
@@ -71,17 +72,20 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
 
         if (next_id > 0) {
             // There's space, so create a new leaf node representing a dictionary entry
-            struct trie_node *new_node = tnode_new(next_id);
-            m.node->children[(unsigned char) *m.next] = new_node;
-            refs[next_id] = new_node;
+            if (need_alloc)
+                refs[next_id] = tnode_new(next_id);
+            else
+                memset(refs[next_id]->children, 0, sizeof(root->children));
+
+            m.node->children[(unsigned char) *m.next] = refs[next_id];
             next_id++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
             for (int i = 0; i < ALPHABET_SIZE; i++)
                 memset(root->children[i]->children, 0, sizeof(root->children));
-            for (int i = ALPHABET_SIZE; i < MAX_NUM_CODES; i++)
-                free(refs[i]);
+
             next_id = ALPHABET_SIZE;
+            need_alloc = false;
         }
     }
 }
