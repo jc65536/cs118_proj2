@@ -146,7 +146,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 bitbuf.num_bits = 64;
                 flush_wrapper(write, &bitbuf);
 
-                dummy(read, write);
+                identity(read, write);
                 goto cleanup;
             }
 
@@ -257,7 +257,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             break;
 
         if (result.code == GIVE_UP_CODE) {
-            dummy(read, write);
+            identity(read, write);
             break;
         }
 
@@ -315,7 +315,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
     free(dict);
 }
 
-void dummy(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
+void identity(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     char buf[BUF_SIZE];
     size_t buf_size;
 
