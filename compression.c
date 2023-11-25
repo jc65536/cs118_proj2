@@ -8,34 +8,41 @@
 #include "compression.h"
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
+#define GIVE_UP_CODE ALPHABET_SIZE
+#define FIRST_DICT_CODE (ALPHABET_SIZE + 1)
 #define MAX_NUM_CODES 1000000
+#define MIN_CODE_WIDTH (CHAR_BIT + 1)
 #define BUF_SIZE 8192
+#define RAND_RATIO 1.35
 
 typedef uint32_t code_t;
 
 // Assumes little endian!
 struct bitbuf {
     uint64_t buf; // High bits are end of queue, low bits are front of queue
-    unsigned int num_bits;
+    unsigned num_bits;
 };
 
-void write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
-                   code_t c, unsigned int w) {
+unsigned write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
+                       code_t c, unsigned w) {
     if (b->num_bits < 64)
         b->buf |= (uint64_t) c << b->num_bits;
 
     if (b->num_bits + w < 64) {
         b->num_bits += w;
+        return 0;
     } else {
         write((char *) &b->buf, sizeof(b->buf));
-        unsigned int extra_bits = b->num_bits + w - 64;
+        unsigned extra_bits = b->num_bits + w - 64;
         b->buf = c >> (w - extra_bits);
         b->num_bits = extra_bits;
+        return sizeof(b->buf);
     }
 }
 
 void flush_wrapper(void (*write)(const char *, size_t), struct bitbuf *b) {
     write((char *) &b->buf, (b->num_bits - 1) / CHAR_BIT + 1);
+    b->num_bits = 0;
 }
 
 struct read_result {
@@ -43,14 +50,14 @@ struct read_result {
     bool done;
 };
 
-struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned int w) {
+struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned w) {
     code_t c = b->buf;
 
     if (w < b->num_bits) {
         b->buf >>= w;
         b->num_bits -= w;
     } else {
-        unsigned int missing_bits = w - b->num_bits;
+        unsigned missing_bits = w - b->num_bits;
         b->num_bits = read((char *) &b->buf, sizeof(b->buf)) * CHAR_BIT;
 
         if (b->num_bits < missing_bits)
@@ -101,11 +108,11 @@ struct match_result match(struct trie_node *node, const char *next, const char *
 
 void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     char *buf = malloc(BUF_SIZE);
-    size_t buf_size = 0;
+    size_t buf_size = read(buf, BUF_SIZE);
     struct trie_node *root = tnode_new(0);
     struct trie_node **refs = calloc(MAX_NUM_CODES, sizeof(refs[0]));
-    code_t num_codes = ALPHABET_SIZE;
-    unsigned int code_width = CHAR_BIT;
+    code_t next_code = FIRST_DICT_CODE;
+    unsigned code_width = MIN_CODE_WIDTH;
     bool need_alloc = true;
     struct bitbuf bitbuf = {};
 
@@ -116,52 +123,75 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
     struct match_result m = {root, buf};
     const char *end = buf + buf_size;
 
+    size_t compressed_bytes = 0;
+
     while (true) {
         m = match(root, m.next, end);
 
         // If match reached the end, refill buffer and continue matching if possible
         while (m.next == end) {
+            if (compressed_bytes > BUF_SIZE * RAND_RATIO) {
+                write_wrapper(write, &bitbuf, m.node->code, code_width);
+
+                // Correctly set code_width for give-up code
+                if (next_code >= MAX_NUM_CODES)
+                    code_width = MIN_CODE_WIDTH;
+                else if (next_code >= (code_t) 1 << code_width)
+                    code_width++;
+
+                write_wrapper(write, &bitbuf, GIVE_UP_CODE, code_width);
+                // Fill bitbuf so uncompressed text isn't read into the
+                // decompression bitbuf
+                bitbuf.num_bits = 64;
+                flush_wrapper(write, &bitbuf);
+
+                dummy(read, write);
+                goto cleanup;
+            }
+
+            compressed_bytes = 0;
+
             if ((buf_size = read(buf, BUF_SIZE))) {
                 end = buf + buf_size;
                 m = match(m.node, buf, end);
             } else {
                 // If buffer can't be refilled, write the match and finish
                 write_wrapper(write, &bitbuf, m.node->code, code_width);
+                flush_wrapper(write, &bitbuf);
                 goto cleanup;
             }
         }
 
-        write_wrapper(write, &bitbuf, m.node->code, code_width);
+        compressed_bytes += write_wrapper(write, &bitbuf, m.node->code, code_width);
 
-        if (num_codes < MAX_NUM_CODES) {
+        if (next_code < MAX_NUM_CODES) {
             // There's space, so create a new leaf node representing a dictionary entry
             if (need_alloc) {
-                refs[num_codes] = tnode_new(num_codes);
+                refs[next_code] = tnode_new(next_code);
             } else {
                 // We don't even need to update the code, since we're getting
                 // the nodes in the same order as they were created
-                memset(refs[num_codes]->children, 0, sizeof(root->children));
+                memset(refs[next_code]->children, 0, sizeof(root->children));
             }
 
-            m.node->children[(unsigned char) *m.next] = refs[num_codes];
+            m.node->children[(unsigned char) *m.next] = refs[next_code];
 
-            if (num_codes >= (code_t) 1 << code_width)
+            if (next_code >= (code_t) 1 << code_width)
                 code_width++;
 
-            num_codes++;
+            next_code++;
         } else {
             // We have exausted all possible codes, so clear the dictionary
             for (int i = 0; i < ALPHABET_SIZE; i++)
                 memset(root->children[i]->children, 0, sizeof(root->children));
 
-            code_width = CHAR_BIT;
-            num_codes = ALPHABET_SIZE;
+            code_width = MIN_CODE_WIDTH;
+            next_code = FIRST_DICT_CODE;
             need_alloc = false;
         }
     }
 
 cleanup:
-    flush_wrapper(write, &bitbuf);
     free(buf);
     free(root);
     free(refs);
@@ -191,8 +221,8 @@ char process_str(const struct dict_node *node, void (*write)(const char *, size_
 
 void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     struct dict_node *dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
-    code_t num_codes = ALPHABET_SIZE;
-    unsigned int code_width = CHAR_BIT;
+    code_t num_codes = FIRST_DICT_CODE;
+    unsigned code_width = MIN_CODE_WIDTH;
     struct bitbuf bitbuf = {};
 
     // Initialize the dictionary to contain all strings of length one
@@ -207,8 +237,11 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
         if (result.done)
             break;
-
-        code_t in_code = result.code;
+        
+        if (result.code == GIVE_UP_CODE) {
+            dummy(read, write);
+            break;
+        }
 
         /* Wab - Match W - Emit w - Add Wa (full)
          * Xb  - Match X - Emit x - Clear  (X = aY)
@@ -220,9 +253,9 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
          */
 
         struct dict_node *node;
-        if (in_code < num_codes) {
+        if (result.code < num_codes) {
             // The input code is in the dictionary; we can look it up
-            node = dict + in_code;
+            node = dict + result.code;
             first_char = process_str(node, write);
             if (prev) {
                 dict[num_codes] = dnode_new(first_char, prev);
@@ -235,19 +268,17 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             first_char = process_str(node, write);
             num_codes++;
         }
-
-        if (num_codes >= (code_t) 1 << code_width)
-            code_width++;
-
         prev = node;
 
         if (num_codes == MAX_NUM_CODES) {
             // If the dictionary is full, we need to clear it. We also know that
             // the next code will be a single-character code, since the
             // compressor also cleared its dictionary.
-            num_codes = ALPHABET_SIZE;
-            code_width = CHAR_BIT;
+            num_codes = FIRST_DICT_CODE;
+            code_width = MIN_CODE_WIDTH;
             prev = NULL;
+        } else if (num_codes >= (code_t) 1 << code_width) {
+            code_width++;
         }
     }
 
