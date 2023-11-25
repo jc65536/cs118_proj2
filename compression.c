@@ -13,28 +13,29 @@
 
 typedef uint32_t code_t;
 
+// Assumes little endian!
 struct bitbuf {
-    uint64_t buf;
+    uint64_t buf; // High bits are end of queue, low bits are front of queue
     unsigned int num_bits;
 };
 
 void write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
                    code_t c, unsigned int w) {
-    if (b->num_bits + w <= 64) {
-        b->buf = (b->buf << w) | c;
+    if (b->num_bits < 64)
+        b->buf |= (uint64_t) c << b->num_bits;
+
+    if (b->num_bits + w < 64) {
         b->num_bits += w;
     } else {
-        unsigned int rem_capacity = 64 - b->num_bits;
-        unsigned int extra_bits = w - rem_capacity;
-        b->buf = (b->buf << rem_capacity) | (c >> extra_bits);
         write((char *) &b->buf, sizeof(b->buf));
-        b->buf = c & ~(~(code_t) 0 << extra_bits);
+        unsigned int extra_bits = b->num_bits + w - 64;
+        b->buf = c >> (w - extra_bits);
         b->num_bits = extra_bits;
     }
 }
 
 void flush_wrapper(void (*write)(const char *, size_t), struct bitbuf *b) {
-    write((char *) &b->buf, ((int) b->num_bits - 1) / CHAR_BIT + 1);
+    write((char *) &b->buf, (b->num_bits - 1) / CHAR_BIT + 1);
 }
 
 struct read_result {
@@ -43,24 +44,25 @@ struct read_result {
 };
 
 struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned int w) {
-    code_t c;
-    if (w <= b->num_bits) {
-        c = b->buf >> (b->num_bits - w);
+    code_t c = b->buf;
+
+    if (w < b->num_bits) {
+        b->buf >>= w;
         b->num_bits -= w;
     } else {
         unsigned int missing_bits = w - b->num_bits;
-        c = b->buf << missing_bits;
-        b->buf = 0;
         b->num_bits = read((char *) &b->buf, sizeof(b->buf)) * CHAR_BIT;
 
         if (b->num_bits < missing_bits)
-            return (struct read_result) {'\0', true};
+            return (struct read_result){'\0', true};
 
-        c |= b->buf >> (b->num_bits - missing_bits);
+        c |= b->buf << (w - missing_bits);
+        b->buf >>= missing_bits;
         b->num_bits -= missing_bits;
     }
 
-    return (struct read_result) {c & ~(~(code_t) 0 << w), false};
+    c &= ~(~(code_t) 0 << w);
+    return (struct read_result){c, false};
 }
 
 struct trie_node {
@@ -77,10 +79,10 @@ struct trie_node *tnode_new(code_t code) {
 void tnode_free(struct trie_node *t) {
     if (!t)
         return;
-    
+
     for (int i = 0; i < ALPHABET_SIZE; i++)
         tnode_free(t->children[i]);
-    
+
     free(t);
 }
 
@@ -205,13 +207,13 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
         if (result.done)
             break;
-        
+
         code_t in_code = result.code;
 
         /* Wab - Match W - Emit w - Add Wa (full)
          * Xb  - Match X - Emit x - Clear  (X = aY)
          * b   - Match b - Emit b
-         * 
+         *
          * Read w - Emit W  - Add something
          * Read x - Emit Xb - Add Wa (full) - Clear
          * Read b - Emit b
@@ -236,7 +238,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
         if (num_codes >= (code_t) 1 << code_width)
             code_width++;
-        
+
         prev = node;
 
         if (num_codes == MAX_NUM_CODES) {

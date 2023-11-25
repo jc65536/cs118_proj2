@@ -31,6 +31,8 @@ int main(int argc, char **argv) {
     fd_out = creat("compressed.lzw", S_IRUSR | S_IWUSR);
 
     compress(read_in, write_out_print);
+
+    printf("====\n");
     
     close(fd_in);
     close(fd_out);
