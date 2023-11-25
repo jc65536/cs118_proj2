@@ -8,7 +8,7 @@
 #include "compression.h"
 
 #define ALPHABET_SIZE (UCHAR_MAX + 1)
-#define MAX_NUM_CODES 65536
+#define MAX_NUM_CODES 1000000
 #define BUF_SIZE 8192
 
 typedef uint32_t code_t;
