@@ -198,29 +198,43 @@ cleanup:
 }
 
 struct dict_node {
+    struct dict_node *parent;
+    struct dict_node *jptr;
+    char *str;
+    char buf[32];
     char c;
-    const struct dict_node *parent;
 };
 
-struct dict_node dnode_new(char c, const struct dict_node *parent) {
-    return (struct dict_node){c, parent};
+struct dict_node *dnode_new(char c, struct dict_node *parent) {
+    struct dict_node *node = calloc(1, sizeof(struct dict_node));
+    node->parent = parent;
+    node->jptr = parent;
+    node->str = &node->c;
+    node->c = c;
+    return node;
 }
 
 /* Writes the string whose tail node is node. Returns the first character of that
  * string.
  */
-char process_str(const struct dict_node *node, void (*write)(const char *, size_t)) {
-    char ret;
-    if (node->parent)
-        ret = process_str(node->parent, write);
-    else
-        ret = node->c;
-    write(&node->c, 1);
-    return ret;
+char process_str(struct dict_node *node, void (*write)(const char *, size_t)) {
+    if (node->jptr) {
+        char ret = process_str(node->jptr, write);
+        write(node->str, &node->c + 1 - node->str);
+        if (node->str > node->buf) {
+            node->str--;
+            *node->str = node->jptr->c;
+            node->jptr = node->jptr->parent;
+        }
+        return ret;
+    } else {
+        write(node->str, &node->c + 1 - node->str);
+        return *node->str;
+    }
 }
 
 void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
-    struct dict_node *dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
+    struct dict_node **dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
     code_t num_codes = FIRST_DICT_CODE;
     unsigned code_width = MIN_CODE_WIDTH;
     struct bitbuf bitbuf = {};
@@ -229,7 +243,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
     for (int i = 0; i < ALPHABET_SIZE; i++)
         dict[i] = dnode_new(i, NULL);
 
-    const struct dict_node *prev = NULL;
+    struct dict_node *prev = NULL;
     char first_char = '\0';
 
     while (true) {
@@ -237,7 +251,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
         if (result.done)
             break;
-        
+
         if (result.code == GIVE_UP_CODE) {
             dummy(read, write);
             break;
@@ -255,7 +269,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
         struct dict_node *node;
         if (result.code < num_codes) {
             // The input code is in the dictionary; we can look it up
-            node = dict + result.code;
+            node = dict[result.code];
             first_char = process_str(node, write);
             if (prev) {
                 dict[num_codes] = dnode_new(first_char, prev);
@@ -263,8 +277,8 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             }
         } else {
             // The input code is not in the dictionary; we can infer it
-            node = dict + num_codes;
-            *node = dnode_new(first_char, prev);
+            node = dnode_new(first_char, prev);
+            dict[num_codes] = node;
             first_char = process_str(node, write);
             num_codes++;
         }
