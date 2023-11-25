@@ -123,14 +123,15 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
     struct match_result m = {root, buf};
     const char *end = buf + buf_size;
 
-    size_t compressed_bytes = 0;
+    size_t comp_size = 0;
+    size_t in_size = buf_size;
 
     while (true) {
         m = match(root, m.next, end);
 
         // If match reached the end, refill buffer and continue matching if possible
         while (m.next == end) {
-            if (compressed_bytes > BUF_SIZE * RAND_RATIO) {
+            if (comp_size > in_size * RAND_RATIO) {
                 write_wrapper(write, &bitbuf, m.node->code, code_width);
 
                 // Correctly set code_width for give-up code
@@ -149,9 +150,8 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 goto cleanup;
             }
 
-            compressed_bytes = 0;
-
             if ((buf_size = read(buf, BUF_SIZE))) {
+                in_size += buf_size;
                 end = buf + buf_size;
                 m = match(m.node, buf, end);
             } else {
@@ -162,7 +162,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
             }
         }
 
-        compressed_bytes += write_wrapper(write, &bitbuf, m.node->code, code_width);
+        comp_size += write_wrapper(write, &bitbuf, m.node->code, code_width);
 
         if (next_code < MAX_NUM_CODES) {
             // There's space, so create a new leaf node representing a dictionary entry
