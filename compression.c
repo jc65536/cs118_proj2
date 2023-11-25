@@ -241,7 +241,7 @@ char process_str(struct dict_node *node, void (*write)(const char *, size_t)) {
 
 void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     struct dict_node **dict = calloc(MAX_NUM_CODES, sizeof(dict[0]));
-    code_t num_codes = FIRST_DICT_CODE;
+    code_t next_code = FIRST_DICT_CODE;
     unsigned code_width = MIN_CODE_WIDTH;
     struct bitbuf bitbuf = {};
 
@@ -274,40 +274,40 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
          */
 
         struct dict_node *node;
-        if (result.code < num_codes) {
+        if (result.code < next_code) {
             // The input code is in the dictionary; we can look it up
             node = dict[result.code];
             first_char = process_str(node, write);
             if (prev) {
                 if (need_alloc) {
-                    dict[num_codes] = dnode_new(first_char, prev);
+                    dict[next_code] = dnode_new(first_char, prev);
                 } else {
-                    dnode_init(dict[num_codes], first_char, prev);
+                    dnode_init(dict[next_code], first_char, prev);
                 }
-                num_codes++;
+                next_code++;
             }
         } else {
             // The input code is not in the dictionary; we can infer it
             if (need_alloc) {
                 node = dnode_new(first_char, prev);
             } else {
-                dnode_init(dict[num_codes], first_char, prev);
+                dnode_init(dict[next_code], first_char, prev);
             }
-            dict[num_codes] = node;
+            dict[next_code] = node;
             first_char = process_str(node, write);
-            num_codes++;
+            next_code++;
         }
         prev = node;
 
-        if (num_codes == MAX_NUM_CODES) {
+        if (next_code == MAX_NUM_CODES) {
             // If the dictionary is full, we need to clear it. We also know that
             // the next code will be a single-character code, since the
             // compressor also cleared its dictionary.
-            num_codes = FIRST_DICT_CODE;
+            next_code = FIRST_DICT_CODE;
             code_width = MIN_CODE_WIDTH;
             prev = NULL;
             need_alloc = false;
-        } else if (num_codes >= (code_t) 1 << code_width) {
+        } else if (next_code >= (code_t) 1 << code_width) {
             code_width++;
         }
     }
