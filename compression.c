@@ -201,17 +201,20 @@ struct dict_node {
     struct dict_node *parent;
     struct dict_node *jptr;
     char *str;
-    char buf[32];
+    char buf[39];
     char c;
 };
 
-struct dict_node *dnode_new(char c, struct dict_node *parent) {
-    struct dict_node *node = calloc(1, sizeof(struct dict_node));
+struct dict_node *dnode_init(struct dict_node *node, char c, struct dict_node *parent) {
     node->parent = parent;
     node->jptr = parent;
     node->str = &node->c;
     node->c = c;
     return node;
+}
+
+struct dict_node *dnode_new(char c, struct dict_node *parent) {
+    return dnode_init(calloc(1, sizeof(struct dict_node)), c, parent);
 }
 
 /* Writes the string whose tail node is node. Returns the first character of that
@@ -245,6 +248,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
 
     struct dict_node *prev = NULL;
     char first_char = '\0';
+    bool need_alloc = true;
 
     while (true) {
         struct read_result result = read_wrapper(read, &bitbuf, code_width);
@@ -272,12 +276,20 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             node = dict[result.code];
             first_char = process_str(node, write);
             if (prev) {
-                dict[num_codes] = dnode_new(first_char, prev);
+                if (need_alloc) {
+                    dict[num_codes] = dnode_new(first_char, prev);
+                } else {
+                    dnode_init(dict[num_codes], first_char, prev);
+                }
                 num_codes++;
             }
         } else {
             // The input code is not in the dictionary; we can infer it
-            node = dnode_new(first_char, prev);
+            if (need_alloc) {
+                node = dnode_new(first_char, prev);
+            } else {
+                dnode_init(dict[num_codes], first_char, prev);
+            }
             dict[num_codes] = node;
             first_char = process_str(node, write);
             num_codes++;
@@ -291,10 +303,14 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             num_codes = FIRST_DICT_CODE;
             code_width = MIN_CODE_WIDTH;
             prev = NULL;
+            need_alloc = false;
         } else if (num_codes >= (code_t) 1 << code_width) {
             code_width++;
         }
     }
+
+    for (int i = 0; i < MAX_NUM_CODES; i++)
+        free(dict[i]);
 
     free(dict);
 }
