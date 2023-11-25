@@ -146,7 +146,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 bitbuf.num_bits = 64;
                 flush_wrapper(write, &bitbuf);
 
-                identity(read, write);
+                copy(read, write);
                 goto cleanup;
             }
 
@@ -199,17 +199,26 @@ cleanup:
 
 struct dict_node {
     struct dict_node *parent;
-    struct dict_node *jptr;
-    char *str;
-    char buf[39];
-    char c;
+    struct dict_node *jump;
+    unsigned offset;
+    char buf[60];
 };
 
 struct dict_node *dnode_init(struct dict_node *node, char c, struct dict_node *parent) {
     node->parent = parent;
-    node->jptr = parent;
-    node->str = &node->c;
-    node->c = c;
+    node->buf[sizeof(node->buf) - 1] = c;
+
+    unsigned offset = sizeof(node->buf) - 1;
+    struct dict_node *jump = parent;
+    while (offset > 0 && jump) {
+        offset--;
+        node->buf[offset] = jump->buf[sizeof(jump->buf) - 1];
+        jump = jump->parent;
+    }
+
+    node->offset = offset;
+    node->jump = jump;
+
     return node;
 }
 
@@ -221,19 +230,13 @@ struct dict_node *dnode_new(char c, struct dict_node *parent) {
  * string.
  */
 char process_str(struct dict_node *node, void (*write)(const char *, size_t)) {
-    if (node->jptr) {
-        char ret = process_str(node->jptr, write);
-        write(node->str, &node->c + 1 - node->str);
-        if (node->str > node->buf) {
-            node->str--;
-            *node->str = node->jptr->c;
-            node->jptr = node->jptr->parent;
-        }
-        return ret;
-    } else {
-        write(node->str, &node->c + 1 - node->str);
-        return *node->str;
-    }
+    char ret;
+    if (node->jump)
+        ret = process_str(node->jump, write);
+    else
+        ret = node->buf[node->offset];
+    write(node->buf + node->offset, sizeof(node->buf) - node->offset);
+    return ret;
 }
 
 void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
@@ -257,7 +260,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
             break;
 
         if (result.code == GIVE_UP_CODE) {
-            identity(read, write);
+            copy(read, write);
             break;
         }
 
@@ -315,7 +318,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
     free(dict);
 }
 
-void identity(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
+void copy(size_t (*read)(char *, size_t), void (*write)(const char *, size_t)) {
     char buf[BUF_SIZE];
     size_t buf_size;
 

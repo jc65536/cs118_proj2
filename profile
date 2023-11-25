@@ -17,7 +17,8 @@ case "$1" in
     comp)
         make clean
         make comp-test PROF=1
-        time ./comp-test rep3.txt
+        time ./comp-test "$2"
         gprof -b comp-test
+        cmp "$2" decoded.txt
         ;;
 esac
