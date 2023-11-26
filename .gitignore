@@ -3,6 +3,6 @@ client
 server
 comp-test
 *.txt
-gmon.out
+*.out
 compressed.lzw
 *.o

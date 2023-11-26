@@ -1,5 +1,11 @@
 #include "server.h"
 
+/* Performance (% of time)
+ * recvbuf_take_begin   60.99
+ * ackq_pop             15.64
+ * recvq_pop            14.08
+ */
+
 struct recvq {
     atomic_size_t num_queued;
     atomic_size_t begin;

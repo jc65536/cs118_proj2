@@ -15,6 +15,12 @@
 #define BUF_SIZE 8192
 #define RAND_RATIO 1.35
 
+/* Performance (% of time)
+ * match        50.07%
+ * process_str  17.88%
+ * dnode_init   14.31%
+ */
+
 typedef uint32_t code_t;
 
 // Assumes little endian!
