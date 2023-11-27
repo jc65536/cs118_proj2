@@ -1,19 +1,22 @@
 CC = gcc
 
-LDFLAGS = -lrt -g
-CFLAGS = -Wall -Wextra -g
+LDFLAGS = -lrt
+CFLAGS = -Wall -Wextra
 
 # If profiling, add -pg
 ifdef PROF
-CFLAGS += -p
-LDFLAGS += -p
+CFLAGS += -pg
+LDFLAGS += -pg
 endif
 
 ifdef OPT
 CFLAGS += -O3
+else
+CFLAGS += -g
 endif
 
-objects = $(patsubst %.c,%.o,$(wildcard *.c))
+sources = $(wildcard *.c)
+objects = $(patsubst %.c,%.o,$(sources))
 headers = $(wildcard *.h)
 
 default: build
@@ -43,5 +46,5 @@ comp-test: comp-test.o compression.o
 clean:
 	rm -f server client comp-test output.txt project2.zip *.o
 
-zip: 
-	zip project2.zip server.c client.c utils.h Makefile README
+zip: $(sources) $(headers) Makefile README
+	zip project2.zip $^

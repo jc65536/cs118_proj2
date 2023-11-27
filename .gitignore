@@ -6,3 +6,4 @@ comp-test
 *.out
 compressed.lzw
 *.o
+*.zip
