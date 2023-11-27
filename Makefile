@@ -1,12 +1,17 @@
 CC = gcc
 
+LDFLAGS = -lrt -g
+CFLAGS = -Wall -Wextra -g
+
 # If profiling, add -pg
 ifdef PROF
-profopt = -p
+CFLAGS += -p
+LDFLAGS += -p
 endif
 
-LDFLAGS = -lrt -g $(profopt)
-CFLAGS = -Wall -Wextra -g $(profopt)
+ifdef OPT
+CFLAGS += -O3
+endif
 
 objects = $(patsubst %.c,%.o,$(wildcard *.c))
 headers = $(wildcard *.h)
