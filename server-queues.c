@@ -223,11 +223,15 @@ bool ackq_pop(struct ackq *q, bool (*cont)(uint32_t)) {
 // Debug
 
 void debug_recvbuf(const char *str, const struct recvbuf *b) {
+#ifdef DEBUG
     printf("[recvbuf] %-32s  rwnd %6ld  begin %6ld  end %6ld  ack_index %6ld  acknum %8d\n",
            str, b->rwnd, b->begin, b->end, b->ack_index, b->acknum);
+#endif
 }
 
 void debug_ackq(const char *str, const struct ackq *q) {
+#ifdef DEBUG
     printf("[ackq] %-32s  queued %6ld  begin %6ld  end %6ld\n",
            str, q->num_queued, q->begin, q->end);
+#endif
 }

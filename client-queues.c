@@ -187,11 +187,15 @@ bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t)) {
 }
 
 void debug_sendq(const char *str, const struct sendq *q) {
+#ifdef DEBUG
     printf("[sendq] %-32s  begin %6ld  end %6ld  send_next %6ld  num_queued %6ld  in_flight %6ld\n",
            str, q->begin, q->end, q->send_next, q->num_queued, q->in_flight);
+#endif
 }
 
 void debug_retransq(const char *str, const struct retransq *q) {
+#ifdef DEBUG
     printf("[retransq] %-32s  begin %6ld  end %6ld  num_queued %6ld\n",
            str, q->begin, q->end, q->num_queued);
+#endif
 }

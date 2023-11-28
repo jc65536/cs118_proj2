@@ -7,9 +7,11 @@ bool is_final(const struct packet *p) {
 }
 
 const char *format(const char *fmt, ...) {
+#ifdef DEBUG
     static char buf[512];
     va_list args;
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     return buf;
+#endif
 }

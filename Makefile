@@ -1,3 +1,5 @@
+DEBUG = 1
+
 CC = gcc
 
 LDFLAGS = -lrt
@@ -9,10 +11,10 @@ CFLAGS += -pg
 LDFLAGS += -pg
 endif
 
-ifdef OPT
-CFLAGS += -O3
+ifdef DEBUG
+CFLAGS += -g -D DEBUG
 else
-CFLAGS += -g
+CFLAGS += -O3
 endif
 
 sources = $(wildcard *.c)
@@ -47,4 +49,6 @@ clean:
 	rm -f server client comp-test output.txt project2.zip *.o
 
 zip: $(sources) $(headers) Makefile README
+	sed -E -i.orig "/^DEBUG/d" Makefile
 	zip project2.zip $^
+	mv Makefile.orig Makefile
