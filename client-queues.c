@@ -126,7 +126,10 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 
 bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
                          bool (*cont)(const struct packet *, size_t)) {
-    size_t index = (seqnum - 1) / MAX_PAYLOAD_SIZE + 1;
+    size_t index = seqnum / MAX_PAYLOAD_SIZE;
+
+    if (index * MAX_PAYLOAD_SIZE > seqnum)
+        index++;
 
     if (index < q->begin || q->end <= index)
         return false;
