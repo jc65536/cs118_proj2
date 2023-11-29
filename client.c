@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     pthread_t reader_thread, sender_thread, receiver_thread;
 
     struct reader_args reader_args = {sendq, filename};
-    pthread_create(&reader_thread, NULL, (voidfn) read_file, &reader_args);
+    pthread_create(&reader_thread, NULL, (voidfn) read_and_compress, &reader_args);
 
     struct sender_args sender_args = {sendq, retransq, timer};
     pthread_create(&sender_thread, NULL, (voidfn) send_packets, &sender_args);

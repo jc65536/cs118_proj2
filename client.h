@@ -90,7 +90,7 @@ void set_timer(timer_t t);
 void unset_timer(timer_t t);
 bool is_timer_set(timer_t t);
 
-void *read_file(struct reader_args *args);
+void *read_and_compress(struct reader_args *args);
 void *send_packets(struct sender_args *args);
 void *receive_acks(struct receiver_args *args);
 

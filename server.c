@@ -24,7 +24,7 @@ int main() {
     pthread_create(&copier_thread, NULL, (voidfn) copy_packets, &copier_args);
 
     struct writer_args writer_args = {recvbuf};
-    pthread_create(&writer_thread, NULL, (voidfn) write_file, &writer_args);
+    pthread_create(&writer_thread, NULL, (voidfn) decompress_and_write, &writer_args);
 
     struct sender_args sender_args = {ackq, recvbuf};
     pthread_create(&sender_thread, NULL, (voidfn) send_acks, &sender_args);

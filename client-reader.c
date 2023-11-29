@@ -7,7 +7,7 @@
 static FILE *fp;
 static struct sendq *sendq;
 
-size_t read_file_(char *dest, size_t req_size) {
+size_t read_file(char *dest, size_t req_size) {
     return fread(dest, sizeof(char), req_size, fp);
 }
 
@@ -15,7 +15,7 @@ void write_compressed(const char *src, size_t size) {
     sendq_fill_end(sendq, src, size);
 }
 
-void *read_file(struct reader_args *args) {
+void *read_and_compress(struct reader_args *args) {
     sendq = args->sendq;
     const char *filename = args->filename;
 
@@ -28,7 +28,7 @@ void *read_file(struct reader_args *args) {
 
     printf("Opened file %s\n", filename);
 
-    compress(read_file_, write_compressed);
+    compress(read_file, write_compressed);
 
     sendq_flush_end(sendq, true);
 

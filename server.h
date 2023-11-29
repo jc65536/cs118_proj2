@@ -59,7 +59,7 @@ struct sender_args {
 
 void *receive_packets(struct receiver_args *args);
 void *copy_packets(struct copier_args *args);
-void *write_file(struct writer_args *args);
+void *decompress_and_write(struct writer_args *args);
 void *send_acks(struct sender_args *args);
 
 // Debug utils
