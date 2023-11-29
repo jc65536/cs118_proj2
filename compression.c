@@ -29,7 +29,7 @@ struct bitbuf {
     unsigned num_bits;
 };
 
-unsigned write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
+unsigned write_bits(void (*write)(const char *, size_t), struct bitbuf *b,
                        code_t c, unsigned w) {
     if (b->num_bits < 64)
         b->buf |= (uint64_t) c << b->num_bits;
@@ -46,7 +46,7 @@ unsigned write_wrapper(void (*write)(const char *, size_t), struct bitbuf *b,
     }
 }
 
-void flush_wrapper(void (*write)(const char *, size_t), struct bitbuf *b) {
+void flush_bits(void (*write)(const char *, size_t), struct bitbuf *b) {
     write((char *) &b->buf, (b->num_bits - 1) / CHAR_BIT + 1);
     b->num_bits = 0;
 }
@@ -56,7 +56,7 @@ struct read_result {
     bool done;
 };
 
-struct read_result read_wrapper(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned w) {
+struct read_result read_bits(size_t (*read)(char *, size_t), struct bitbuf *b, unsigned w) {
     code_t c = b->buf;
 
     if (w < b->num_bits) {
@@ -138,7 +138,7 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
         // If match reached the end, refill buffer and continue matching if possible
         while (m.next == end) {
             if (comp_size > in_size * RAND_RATIO) {
-                write_wrapper(write, &bitbuf, m.node->code, code_width);
+                write_bits(write, &bitbuf, m.node->code, code_width);
 
                 // Correctly set code_width for give-up code
                 if (next_code >= MAX_NUM_CODES)
@@ -146,11 +146,11 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 else if (next_code >> code_width)
                     code_width++;
 
-                write_wrapper(write, &bitbuf, GIVE_UP_CODE, code_width);
+                write_bits(write, &bitbuf, GIVE_UP_CODE, code_width);
                 // Fill bitbuf so uncompressed text isn't read into the
                 // decompression bitbuf
                 bitbuf.num_bits = 64;
-                flush_wrapper(write, &bitbuf);
+                flush_bits(write, &bitbuf);
 
                 copy(read, write);
                 goto cleanup;
@@ -162,13 +162,13 @@ void compress(size_t (*read)(char *, size_t), void (*write)(const char *, size_t
                 m = match(m.node, buf, end);
             } else {
                 // If buffer can't be refilled, write the match and finish
-                write_wrapper(write, &bitbuf, m.node->code, code_width);
-                flush_wrapper(write, &bitbuf);
+                write_bits(write, &bitbuf, m.node->code, code_width);
+                flush_bits(write, &bitbuf);
                 goto cleanup;
             }
         }
 
-        comp_size += write_wrapper(write, &bitbuf, m.node->code, code_width);
+        comp_size += write_bits(write, &bitbuf, m.node->code, code_width);
 
         if (next_code < MAX_NUM_CODES) {
             // There's space, so create a new leaf node representing a dictionary entry
@@ -257,7 +257,7 @@ void decompress(size_t (*read)(char *, size_t), void (*write)(const char *, size
     bool need_alloc = true;
 
     while (true) {
-        struct read_result result = read_wrapper(read, &bitbuf, code_width);
+        struct read_result result = read_bits(read, &bitbuf, code_width);
 
         if (result.done)
             break;
