@@ -128,7 +128,7 @@ bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
                          bool (*cont)(const struct packet *, size_t)) {
     size_t index = seqnum / MAX_PAYLOAD_SIZE;
 
-    if (index * MAX_PAYLOAD_SIZE > seqnum)
+    if (index * MAX_PAYLOAD_SIZE < seqnum)
         index++;
 
     if (index < q->begin || q->end <= index)
