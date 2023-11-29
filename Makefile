@@ -1,9 +1,11 @@
-DEBUG = 1
-
 CC = gcc
 
 LDFLAGS = -lrt
 CFLAGS = -Wall -Wextra
+
+ifneq ($(wildcard .env),)
+include .env
+endif
 
 # If profiling, add -pg
 ifdef PROF
