@@ -1,4 +1,8 @@
 #include <stdatomic.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "client.h"
 
@@ -198,4 +202,26 @@ void debug_retransq(const char *str, const struct retransq *q) {
     printf("[retransq] %-32s  begin %6ld  end %6ld  num_queued %6ld\n",
            str, q->begin, q->end, q->num_queued);
 #endif
+}
+
+void profile(union sigval args) {
+    static int fd;
+    static char str[256];
+    static size_t str_size;
+
+    if (!fd) {
+        fd = creat("ignore/client-bufs.csv", S_IRUSR | S_IWUSR);
+        str_size = sprintf(str, "in_flight,read,retrans\n");
+        write(fd, str, str_size);
+    }
+
+    struct profiler_args *pargs = (struct profiler_args *) args.sival_ptr;
+    const struct sendq *sendq = pargs->sendq;
+    const struct retransq *retransq = pargs->retransq;
+
+    size_t in_flight = sendq->in_flight;
+    size_t read = sendq->num_queued - in_flight;
+    size_t retrans = retransq->num_queued;
+    str_size = sprintf(str, "%ld,%ld,%ld\n", in_flight, read, retrans);
+    write(fd, str, str_size);
 }

@@ -85,6 +85,11 @@ struct receiver_args {
     timer_t timer;
 };
 
+struct profiler_args {
+    const struct sendq *sendq;
+    const struct retransq *retransq;
+};
+
 void handle_timer(union sigval args);
 void set_timer(timer_t t);
 void unset_timer(timer_t t);
@@ -93,6 +98,8 @@ bool is_timer_set(timer_t t);
 void *read_and_compress(struct reader_args *args);
 void *send_packets(struct sender_args *args);
 void *receive_acks(struct receiver_args *args);
+
+void profile(union sigval args);
 
 // Debug
 

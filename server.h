@@ -2,6 +2,8 @@
 #define SERVER_H
 
 #include <stdatomic.h>
+#include <time.h>
+#include <signal.h>
 
 #include "common.h"
 
@@ -57,10 +59,18 @@ struct sender_args {
     struct recvbuf *recvbuf;
 };
 
+struct profiler_args {
+    const struct recvq *recvq;
+    const struct recvbuf *recvbuf;
+    const struct ackq *ackq;
+};
+
 void *receive_packets(struct receiver_args *args);
 void *copy_packets(struct copier_args *args);
 void *decompress_and_write(struct writer_args *args);
 void *send_acks(struct sender_args *args);
+
+void profile(union sigval args);
 
 // Debug utils
 

@@ -1,3 +1,7 @@
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include "server.h"
 
 /* Performance (% of time)
@@ -234,4 +238,28 @@ void debug_ackq(const char *str, const struct ackq *q) {
     printf("[ackq] %-32s  queued %6ld  begin %6ld  end %6ld\n",
            str, q->num_queued, q->begin, q->end);
 #endif
+}
+
+void profile(union sigval args) {
+    static int fd;
+    static char str[256];
+    static size_t str_size;
+
+    if (!fd) {
+        fd = creat("ignore/server-bufs.csv", S_IRUSR | S_IWUSR);
+        str_size = sprintf(str, "recvq,acked,recvbuf,ackq\n");
+        write(fd, str, str_size);
+    }
+
+    struct profiler_args *pargs = (struct profiler_args *) args.sival_ptr;
+    const struct recvq *recvq = pargs->recvq;
+    const struct recvbuf *recvbuf = pargs->recvbuf;
+    const struct ackq *ackq = pargs->ackq;
+
+    size_t rq = recvq->num_queued;
+    size_t acked = recvbuf->ack_index - recvbuf->begin;
+    size_t rbuf = RECVBUF_CAPACITY - recvbuf->rwnd - acked;
+    size_t aq = ackq->num_queued;
+    str_size = sprintf(str, "%ld,%ld,%ld,%ld\n", rq,acked,rbuf,aq);
+    write(fd, str, str_size);
 }
