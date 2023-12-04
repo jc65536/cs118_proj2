@@ -99,4 +99,10 @@ void *receive_acks(struct receiver_args *args);
 void debug_sendq(const char *str, const struct sendq *q);
 void debug_retransq(const char *str, const struct retransq *q);
 
+//getter and setter functions
+void update_cwnd(struct sendq *q, size_t val);
+void update_ssthresh(struct sendq *q, size_t val);
+bool update_dupACKs(struct sendq *q, size_t val);//updates dupACKs and returns true if dupACKs == 3, false otherwise
+atomic_size_t get_cwnd(struct sendq *q);
+
 #endif

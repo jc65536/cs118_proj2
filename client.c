@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     struct sender_args sender_args = {sendq, retransq, timer};
     pthread_create(&sender_thread, NULL, (voidfn) send_packets, &sender_args);
 
-    struct receiver_args receiver_args = {sendq, retransq, timer};
+    struct receiver_args receiver_args = {sendq, retransq, timer}; //TODO: add state arg for slow start, congestion control, and fast recovery
     pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
 
     pthread_join(reader_thread, NULL);

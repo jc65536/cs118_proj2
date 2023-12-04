@@ -8,6 +8,9 @@ struct sendq {
     atomic_size_t send_next;
     atomic_size_t num_queued;
     atomic_size_t cwnd;
+    atomic_size_t ssthresh;
+    atomic_size_t dupACKs;
+    atomic_size_t state; //0=slow start, 1=congestion control, 2=FR
     atomic_size_t in_flight;
     uint32_t seqnum;
     size_t bytes_written;
@@ -28,6 +31,31 @@ struct sendq *sendq_new() {
 
 struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
+}
+
+void update_cwnd(struct sendq *q, size_t val){
+    q->cwnd = val;
+    if (q->cwnd >= q->ssthresh && q->state == 0){
+        q->state = 1; //move to congestion control
+    }
+}
+
+void update_ssthresh(struct sendq *q, size_t val){
+    q->ssthresh = val;
+}
+
+//updates dupACKs and returns true if dupACKs == 3, false otherwise
+bool update_dupACKs(struct sendq *q, size_t val){
+    q->dupACKs = val;
+    if (q->dupACKs == 3){
+        q->state = 2; //move to FR
+        return true;
+    }
+    return false;
+}
+
+atomic_size_t get_cwnd(struct sendq *q){
+    return q->cwnd;
 }
 
 void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
