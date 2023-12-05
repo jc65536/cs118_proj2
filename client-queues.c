@@ -21,9 +21,24 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
-    q->cwnd = SENDQ_CAPACITY;
+    q->cwnd = 10;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
+}
+
+size_t sendq_get_cwnd(struct sendq *q) {
+    return q->cwnd;
+}
+
+void sendq_inc_cwnd(struct sendq *q) {
+    q->cwnd += 1;
+}
+
+void sendq_halve_cwnd(struct sendq *q) {
+    size_t cwnd = q->cwnd / 2;
+    if (cwnd == 0)
+        cwnd = 1;
+    q->cwnd = cwnd;
 }
 
 struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {

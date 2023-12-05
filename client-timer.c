@@ -17,6 +17,8 @@ void handle_timer(union sigval args) {
 
     if (p)
         retransq_push(retransq, p->seqnum);
+    
+    sendq_halve_cwnd(sendq);
 }
 
 void set_timer(timer_t t) {

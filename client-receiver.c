@@ -34,6 +34,7 @@ void *receive_acks(struct receiver_args *args) {
 
     // acknum is always set to the largest acknum we have received from the
     // server. Represents how many bytes we know the server has received.
+    uint32_t last_acknum = 0;
     uint32_t acknum = 0;
 
     int dupcount = 0;
@@ -59,6 +60,11 @@ void *receive_acks(struct receiver_args *args) {
 
             // Update acknum to the latest acknum
             acknum = packet->seqnum;
+
+            if (acknum - last_acknum >= sendq_get_cwnd(sendq) * MAX_PAYLOAD_SIZE) {
+                sendq_inc_cwnd(sendq);
+                last_acknum = acknum;
+            }
         } else {
             dupcount++;
             if (dupcount == 3) {
@@ -70,6 +76,7 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
                 retransq_push(retransq, packet->seqnum);
+                sendq_halve_cwnd(sendq);
             }
         }
     }

@@ -27,7 +27,7 @@ default: build
 
 build: server client
 
-$(objects): $(headers)
+$(objects): $(headers) .env
 
 server: server.o common.o \
 		server-queues.o \
