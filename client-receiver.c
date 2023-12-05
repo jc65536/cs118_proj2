@@ -58,8 +58,14 @@ void *receive_acks(struct receiver_args *args) {
             //TODO: if in fast recovery, dup ack --> inc cwnd
             //else: inc dup count, check if dup == 3 and go to FR
             dupcount++;
-            if (dupcount == 3) { 
+            if (dupcount == 3) {
+            #ifdef DEBUG
                 printf("3 duplicate acks!\n");
+            #endif
+
+                // Push the acknum of the duplicate acks onto retransmission
+                // queue. sender_thread will take care of the actual
+                // retransmission.
                 retransq_push(retransq, packet->seqnum);
             }
         }

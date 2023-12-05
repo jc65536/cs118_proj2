@@ -7,7 +7,9 @@ void handle_timer(union sigval args) {
     struct sendq *sendq = targs->sendq;
     struct retransq *retransq = targs->retransq;
 
+#ifdef DEBUG
     printf("Timeout!!\n");
+#endif
     
     // p is the oldest in-flight packet, or NULL if there are no in-flight
     // packets.

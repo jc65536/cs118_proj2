@@ -51,6 +51,4 @@ clean:
 	rm -f server client comp-test output.txt project2.zip *.o
 
 zip: $(sources) $(headers) Makefile README
-	sed -E -i.orig "/^DEBUG/d" Makefile
 	zip project2.zip $^
-	mv Makefile.orig Makefile
