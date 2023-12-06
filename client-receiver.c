@@ -104,6 +104,10 @@ void *receive_acks(struct receiver_args *args) {
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
                 sendq_inc_cwnd(sendq);
+            } else {
+                // Violating RFC 5681 Section 3.2
+                // But that assumes a malicious receiver
+                // sendq_inc_cwnd(sendq);
             }
         }
     }

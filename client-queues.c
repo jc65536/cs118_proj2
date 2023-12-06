@@ -230,6 +230,7 @@ void debug_retransq(const char *str, const struct retransq *q) {
 }
 
 void profile(union sigval args) {
+#ifdef DEBUG
     static int fd;
     static char str[256];
     static size_t str_size;
@@ -251,4 +252,5 @@ void profile(union sigval args) {
     uint32_t ssthresh = sendq->ssthresh;
     str_size = sprintf(str, "%ld,%ld,%ld,%ld,%d\n", in_flight, read, retrans, cwnd, ssthresh);
     write(fd, str, str_size);
+#endif
 }

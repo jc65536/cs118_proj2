@@ -241,6 +241,7 @@ void debug_ackq(const char *str, const struct ackq *q) {
 }
 
 void profile(union sigval args) {
+#ifdef DEBUG
     static int fd;
     static char str[256];
     static size_t str_size;
@@ -262,4 +263,5 @@ void profile(union sigval args) {
     size_t aq = ackq->num_queued;
     str_size = sprintf(str, "%ld,%ld,%ld,%ld\n", rq, acked, rbuf, aq);
     write(fd, str, str_size);
+#endif
 }

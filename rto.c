@@ -5,13 +5,14 @@
 #include "rto.h"
 
 #define S_TO_NS ((uint64_t) 1000000000)
+#define RTO_LB  ((uint64_t)  500000000)
 #define A 0.125
 #define B 0.25
 
 struct timespec rto = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
 
 static int consecutive_doubling = 0;
-static bool is_lossy_link = false;
+bool is_lossy_link = false;
 
 static bool flag = false;
 static struct timespec tspec;
@@ -53,9 +54,9 @@ void log_ack(uint32_t acknum) {
 
     uint64_t rto_ = srtt + 4 * rttvar;
 
-    if (rto_ < S_TO_NS) {
-        rto.tv_sec = 1;
-        rto.tv_nsec = 0;
+    if (rto_ < RTO_LB) {
+        rto.tv_sec = 0;
+        rto.tv_nsec = RTO_LB;
     } else {
         rto.tv_sec = rto_ / S_TO_NS;
         rto.tv_nsec = rto_ % S_TO_NS;
@@ -75,7 +76,8 @@ void double_rto() {
     if (is_lossy_link)
         return;
 
-    if (consecutive_doubling == 1) {
+    if (consecutive_doubling == 2) {
+        printf("Lossy link detected!!\n");
         is_lossy_link = true;
         rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
         return;
