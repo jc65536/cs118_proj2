@@ -20,7 +20,7 @@ void *decompress_and_write(struct writer_args *args) {
     // Open the target file for writing (always write to output.txt)
     fp = fopen("output.txt", "wb");
 
-    decompress(read_compressed, write_file);
+    copy(read_compressed, write_file);
 
     printf("Wrote last packet\n");
     fclose(fp);
