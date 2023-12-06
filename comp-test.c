@@ -1,8 +1,8 @@
 #include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "compression.h"
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     compress(read_in, write_out);
 
     printf("====\n");
-    
+
     close(fd_in);
     close(fd_out);
 

@@ -30,7 +30,7 @@ struct bitbuf {
 };
 
 unsigned write_bits(void (*write)(const char *, size_t), struct bitbuf *b,
-                       code_t c, unsigned w) {
+                    code_t c, unsigned w) {
     if (b->num_bits < 64)
         b->buf |= (uint64_t) c << b->num_bits;
 

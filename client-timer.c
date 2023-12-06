@@ -38,5 +38,5 @@ void unset_timer(timer_t t) {
 bool is_timer_set(timer_t t) {
     struct itimerspec itspec;
     timer_gettime(t, &itspec);
-    return itspec.it_value.tv_sec + itspec.it_value.tv_nsec;
+    return itspec.it_value.tv_sec | itspec.it_value.tv_nsec;
 }

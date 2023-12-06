@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
     timer_t ptimer;
     struct profiler_args profiler_args = {sendq, retransq};
     struct sigevent psev = {.sigev_notify = SIGEV_THREAD,
-                           .sigev_value.sival_ptr = &profiler_args,
-                           .sigev_notify_function = profile};
+                            .sigev_value.sival_ptr = &profiler_args,
+                            .sigev_notify_function = profile};
     timer_create(CLOCK_REALTIME, &psev, &ptimer);
     struct timespec tspec = {.tv_nsec = 60000000};
     struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};

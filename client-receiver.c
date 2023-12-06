@@ -90,9 +90,9 @@ void *receive_acks(struct receiver_args *args) {
         } else {
             dupcount++;
             if (dupcount == 3) {
-            #ifdef DEBUG
+#ifdef DEBUG
                 printf("3 duplicate acks!\n");
-            #endif
+#endif
 
                 // Push the acknum of the duplicate acks onto retransmission
                 // queue. sender_thread will take care of the actual

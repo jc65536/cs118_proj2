@@ -1,9 +1,9 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <signal.h>
 #include <stdatomic.h>
 #include <time.h>
-#include <signal.h>
 
 #include "common.h"
 
