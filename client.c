@@ -1,8 +1,16 @@
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef DEBUG
+void term(int) {
+    exit(0);
+}
+#endif
 
 #include "client.h"
 
@@ -12,6 +20,10 @@ int main(int argc, char *argv[]) {
         printf("Usage: ./client <filename>\n");
         return 1;
     }
+
+#ifdef DEBUG
+    signal(SIGTERM, term);
+#endif
 
     char *filename = argv[1];
 
@@ -29,8 +41,8 @@ int main(int argc, char *argv[]) {
 
     timer_create(CLOCK_REALTIME, &sev, &timer);
 
-    // Profiling
 #ifdef DEBUG
+    // Profiling
     timer_t ptimer;
     struct profiler_args profiler_args = {sendq, retransq};
     struct sigevent psev = {.sigev_notify = SIGEV_THREAD,

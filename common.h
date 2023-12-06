@@ -22,10 +22,20 @@
 
 #define FLAG_FINAL 0b00000001
 
+#ifdef DEBUG
+#define DBG(x) (x)
+#else
+#define DBG(x) \
+    do {       \
+    } while (0)
+#endif
+
 typedef void *(*voidfn)(void *);
 
+typedef uint32_t seqnum_t;
+
 struct packet {
-    uint32_t seqnum;
+    seqnum_t seqnum;
     uint8_t flags;
     char payload[MAX_PAYLOAD_SIZE];
 };

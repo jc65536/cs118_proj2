@@ -12,19 +12,19 @@
 struct timespec rto = (struct timespec){.tv_sec = 0, .tv_nsec = RTO_LB};
 
 static int consecutive_doubling = 0;
-bool is_lossy_link = false;
+bool lossy_link = false;
 
 static bool flag = false;
 static struct timespec tspec;
 
-static uint32_t stored_seqnum;
+static seqnum_t stored_seqnum;
 
 uint64_t abs_diff(uint64_t x, uint64_t y) {
     return x < y ? y - x : x - y;
 }
 
-void log_send(uint32_t seqnum) {
-    if (is_lossy_link || flag)
+void log_send(seqnum_t seqnum) {
+    if (lossy_link || flag)
         return;
 
     stored_seqnum = seqnum;
@@ -33,13 +33,12 @@ void log_send(uint32_t seqnum) {
     flag = true;
 }
 
-void log_ack(uint32_t acknum) {
+void log_ack(seqnum_t acknum) {
     static uint64_t srtt;
     static uint64_t rttvar;
 
-    if (is_lossy_link || !flag || acknum <= stored_seqnum)
+    if (lossy_link || !flag || acknum <= stored_seqnum)
         return;
-
 
     struct timespec endspec = {};
     clock_gettime(CLOCK_REALTIME, &endspec);
@@ -74,15 +73,15 @@ void log_ack(uint32_t acknum) {
 }
 
 void double_rto() {
-    if (is_lossy_link)
+    if (lossy_link)
         return;
 
     if (consecutive_doubling == 2) {
 #ifdef DEBUG
         printf("Lossy link detected!!\n");
 #endif
-        is_lossy_link = true;
         rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
+        lossy_link = true;
         return;
     }
 

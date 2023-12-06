@@ -15,18 +15,18 @@ int main() {
     struct recvbuf *recvbuf = recvbuf_new();
     struct ackq *ackq = ackq_new();
 
+#ifdef DEBUG
     // Profiling
-    /*
     timer_t ptimer;
     struct profiler_args profiler_args = {recvq, recvbuf, ackq};
     struct sigevent psev = {.sigev_notify = SIGEV_THREAD,
-                           .sigev_value.sival_ptr = &profiler_args,
-                           .sigev_notify_function = profile};
+                            .sigev_value.sival_ptr = &profiler_args,
+                            .sigev_notify_function = profile};
     timer_create(CLOCK_REALTIME, &psev, &ptimer);
     struct timespec tspec = {.tv_nsec = 1000000};
     struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
     timer_settime(ptimer, 0, &itspec, NULL);
-    */
+#endif
 
     pthread_t receiver_thread, copier_thread, writer_thread, sender_thread;
 

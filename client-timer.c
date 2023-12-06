@@ -27,9 +27,12 @@ void handle_timer(union sigval args) {
             retransq_push(retransq, p->seqnum);
     }
 
-    sendq_halve_ssthresh(sendq);
-    sendq_set_cwnd(sendq, holes_len_ / 2);
-    double_rto();
+    if (!lossy_link) {
+        sendq_halve_ssthresh(sendq);
+        sendq_set_cwnd(sendq, holes_len_ / 2);
+        double_rto();
+    }
+
     set_timer(timer);
 }
 

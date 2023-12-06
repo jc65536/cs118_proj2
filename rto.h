@@ -4,11 +4,13 @@
 #include <stdint.h>
 #include <time.h>
 
-extern struct timespec rto;
-extern bool is_lossy_link;
+#include "common.h"
 
-void log_send(uint32_t seqnum);
-void log_ack(uint32_t acknum);
+extern struct timespec rto;
+extern bool lossy_link;
+
+void log_send(seqnum_t seqnum);
+void log_ack(seqnum_t acknum);
 void double_rto();
 
 #endif

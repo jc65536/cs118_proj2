@@ -21,7 +21,7 @@ bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *));
 /* If possible, pop packets from q until acknum. Returns the remaining number of
  * in-flight packets (number of packets sent but not ACKed).
  */
-size_t sendq_pop(struct sendq *q, uint32_t acknum);
+size_t sendq_pop(struct sendq *q, seqnum_t acknum);
 
 /* If possible, call cont to send the next packet. Returns whether the send was
  * successful.
@@ -31,7 +31,7 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 /* If possible, pass the packet specified by seqnum to cont. Returns whether the
  * seqnum was valid and cont was successful.
  */
-bool sendq_lookup_seqnum(const struct sendq *q, uint32_t seqnum,
+bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
 void sendq_fill_end(struct sendq *q, const char *src, size_t size);
@@ -53,14 +53,14 @@ struct retransq *retransq_new();
 
 /* If possible, push seqnum onto q. Returns whether the push was successful.
  */
-bool retransq_push(struct retransq *q, uint32_t seqnum);
+bool retransq_push(struct retransq *q, seqnum_t seqnum);
 
 /* If possible, call cont to process the next seqnum, then pop q. Returns whether
  * a seqnum was popped and cont was successful.
  */
-bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t));
+bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t));
 
-extern uint32_t holes[MAX_PAYLOAD_SIZE / sizeof(uint32_t)];
+extern seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
 extern size_t holes_len;
 
 // Thread routines
@@ -104,9 +104,10 @@ void *receive_acks(struct receiver_args *args);
 
 // Debug
 
+#ifdef DEBUG
 void debug_sendq(const char *str, const struct sendq *q);
 void debug_retransq(const char *str, const struct retransq *q);
-
 void profile(union sigval args);
+#endif
 
 #endif

@@ -7,7 +7,7 @@
 static FILE *fp;
 static struct sendq *sendq;
 static bool read_done = false;
-uint32_t seqnum = 0;
+seqnum_t seqnum = 0;
 
 bool read_packet(struct packet *p, size_t *packet_size) {
     size_t bytes_read = fread(p->payload, sizeof(char), MAX_PAYLOAD_SIZE, fp);
@@ -26,7 +26,7 @@ bool read_packet(struct packet *p, size_t *packet_size) {
 
     p->seqnum = seqnum;
     *packet_size = HEADER_SIZE + bytes_read;
-    seqnum += bytes_read;
+    seqnum++;
     return true;
 }
 

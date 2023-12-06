@@ -6,7 +6,7 @@
 static int send_sockfd;
 static struct recvbuf *recvbuf;
 
-bool send_one(uint32_t acknum) {
+bool send_one(seqnum_t acknum) {
     static struct packet p = {};
 
     p.seqnum = acknum;

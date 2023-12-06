@@ -6,12 +6,12 @@ bool is_final(const struct packet *p) {
     return p->flags & FLAG_FINAL;
 }
 
-const char *format(const char *fmt, ...) {
 #ifdef DEBUG
+const char *format(const char *fmt, ...) {
     static char buf[512];
     va_list args;
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     return buf;
-#endif
 }
+#endif

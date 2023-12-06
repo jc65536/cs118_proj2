@@ -4,7 +4,7 @@
 #include "client.h"
 #include "rto.h"
 
-uint32_t holes[MAX_PAYLOAD_SIZE / sizeof(uint32_t)];
+seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
 size_t holes_len;
 
 enum trans_state {
@@ -44,8 +44,8 @@ void *receive_acks(struct receiver_args *args) {
 
     // acknum is always set to the largest acknum we have received from the
     // server. Represents how many bytes we know the server has received.
-    uint32_t last_acknum = 0;
-    uint32_t acknum = 0;
+    seqnum_t last_acknum = 0;
+    seqnum_t acknum = 0;
     enum trans_state state = SLOW_START;
 
     int dupcount = 0;
@@ -59,7 +59,7 @@ void *receive_acks(struct receiver_args *args) {
         }
 
         memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
-        holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(uint32_t);
+        holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
         log_ack(packet->seqnum);
 
@@ -85,7 +85,7 @@ void *receive_acks(struct receiver_args *args) {
                     state = CONGESTION_AVOIDANCE;
                 break;
             case CONGESTION_AVOIDANCE:
-                if (acknum - last_acknum >= sendq_get_cwnd(sendq) * MAX_PAYLOAD_SIZE) {
+                if (acknum - last_acknum >= sendq_get_cwnd(sendq)) {
                     sendq_inc_cwnd(sendq);
                     last_acknum = acknum;
                 }
