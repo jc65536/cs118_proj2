@@ -1,7 +1,7 @@
-#include <stdatomic.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <stdatomic.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "client.h"
@@ -26,8 +26,8 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
-    q->cwnd = 2;
-    q->ssthresh = 128;
+    q->cwnd = 1;
+    q->ssthresh = 256;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
 }
@@ -79,7 +79,7 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
         memcpy(q->slot->packet.payload + q->bytes_written, src, rem_capacity);
         q->slot->packet_size = sizeof(struct packet);
         q->seqnum += rem_capacity;
-        
+
         sendq_flush_end(q, false);
 
         if (size > rem_capacity)
@@ -90,10 +90,10 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
 bool sendq_flush_end(struct sendq *q, bool final) {
     if (!q->slot)
         return false;
-    
+
     if (final)
         q->slot->packet.flags = FLAG_FINAL;
-    
+
     q->slot = NULL;
     q->end++;
     q->num_queued++;

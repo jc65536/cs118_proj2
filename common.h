@@ -14,7 +14,7 @@
 #define CLIENT_PORT 6001
 #define SERVER_PORT 6002
 #define CLIENT_PORT_TO 5001
-#define MAX_PAYLOAD_SIZE 1024
+#define MAX_PAYLOAD_SIZE 1192
 #define WINDOW_SIZE 5
 #define MAX_SEQUENCE 1024
 
@@ -34,8 +34,6 @@ struct packet {
 };
 
 #define HEADER_SIZE (offsetof(struct packet, payload))
-
-bool is_final(const struct packet *p);
 
 const char *format(const char *fmt, ...);
 
