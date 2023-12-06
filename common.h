@@ -35,6 +35,8 @@ struct packet {
 
 #define HEADER_SIZE (offsetof(struct packet, payload))
 
+bool is_final(const struct packet *p);
+
 const char *format(const char *fmt, ...);
 
 #endif

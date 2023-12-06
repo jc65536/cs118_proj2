@@ -98,8 +98,7 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
                 retransq_push(retransq, packet->seqnum);
-                sendq_halve_ssthresh(sendq);
-                sendq_set_cwnd(sendq, sendq_get_ssthresh(sendq) + 3);
+                sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
                 sendq_inc_cwnd(sendq);

@@ -32,11 +32,11 @@ struct sendq *sendq_new() {
     return q;
 }
 
-void sendq_halve_ssthresh(struct sendq *q) {
-    uint32_t ssthresh = q->ssthresh / 2;
+uint32_t sendq_halve_ssthresh(struct sendq *q) {
+    uint32_t ssthresh = q->in_flight / 2;
     if (ssthresh < 2)
         ssthresh = 2;
-    q->ssthresh = ssthresh;
+    return q->ssthresh = ssthresh;
 }
 
 uint32_t sendq_get_ssthresh(struct sendq *q) {

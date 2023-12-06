@@ -59,8 +59,8 @@ void log_ack(uint32_t acknum) {
     }
 
 #ifdef DEBUG
-    printf("[RTO] Updated to %ld s %ld ns; srtt = %ld, rttvar = %ld\n",
-           rto.tv_sec, rto.tv_nsec, srtt, rttvar);
+    printf("[RTO] Updated to %ld s %ld ns; srtt = %ld, rttvar = %ld, rtt = %ld\n",
+           rto.tv_sec, rto.tv_nsec, srtt, rttvar, rtt);
 #endif
 
     flag = false;

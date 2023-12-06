@@ -52,7 +52,7 @@ uint32_t sendq_get_ssthresh(struct sendq *q);
 size_t sendq_get_cwnd(struct sendq *q);
 void sendq_set_cwnd(struct sendq *q, size_t cwnd);
 size_t sendq_inc_cwnd(struct sendq *q);
-void sendq_halve_ssthresh(struct sendq *q);
+uint32_t sendq_halve_ssthresh(struct sendq *q);
 
 struct retransq;
 
