@@ -50,8 +50,13 @@ void log_ack(uint32_t acknum) {
 
     uint64_t rto_ = srtt + 4 * rttvar;
 
-    rto.tv_sec = rto_ / S_TO_NS;
-    rto.tv_nsec = rto_ % S_TO_NS;
+    if (rto_ < S_TO_NS) {
+        rto.tv_sec = 1;
+        rto.tv_nsec = 0;
+    } else {
+        rto.tv_sec = rto_ / S_TO_NS;
+        rto.tv_nsec = rto_ % S_TO_NS;
+    }
 
 #ifdef DEBUG
     printf("[RTO] Updated to %ld s %ld ns; srtt = %ld, rttvar = %ld\n",
