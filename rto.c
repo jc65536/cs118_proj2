@@ -4,11 +4,14 @@
 
 #include "rto.h"
 
-#define S_TO_NS 1000000000
+#define S_TO_NS ((uint64_t) 1000000000)
 #define A 0.125
 #define B 0.25
 
 struct timespec rto = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
+
+static int consecutive_doubling = 0;
+static bool is_lossy_link = false;
 
 static bool flag = false;
 static struct timespec tspec;
@@ -20,7 +23,7 @@ uint64_t abs_diff(uint64_t x, uint64_t y) {
 }
 
 void log_send(uint32_t seqnum) {
-    if (flag)
+    if (is_lossy_link || flag)
         return;
 
     stored_seqnum = seqnum;
@@ -33,7 +36,7 @@ void log_ack(uint32_t acknum) {
     static uint64_t srtt;
     static uint64_t rttvar;
 
-    if (!flag || acknum <= stored_seqnum)
+    if (is_lossy_link || !flag || acknum <= stored_seqnum)
         return;
 
     struct timespec endspec = {};
@@ -58,6 +61,8 @@ void log_ack(uint32_t acknum) {
         rto.tv_nsec = rto_ % S_TO_NS;
     }
 
+    consecutive_doubling = 0;
+
 #ifdef DEBUG
     printf("[RTO] Updated to %ld s %ld ns; srtt = %ld, rttvar = %ld, rtt = %ld\n",
            rto.tv_sec, rto.tv_nsec, srtt, rttvar, rtt);
@@ -67,9 +72,19 @@ void log_ack(uint32_t acknum) {
 }
 
 void double_rto() {
+    if (is_lossy_link)
+        return;
+
+    if (consecutive_doubling == 1) {
+        is_lossy_link = true;
+        rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
+        return;
+    }
+
     uint64_t rto_ = rto.tv_sec * S_TO_NS + rto.tv_nsec;
     rto_ *= 2;
     rto.tv_sec = rto_ / S_TO_NS;
     rto.tv_nsec = rto_ % S_TO_NS;
     flag = false;
+    consecutive_doubling++;
 }

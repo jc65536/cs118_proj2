@@ -34,8 +34,7 @@ server: server.o common.o \
 		server-receiver.o \
 		server-copier.o \
 		server-writer.o \
-		server-sender.o \
-		compression.o
+		server-sender.o
 
 client: client.o common.o \
 		client-timer.o \
@@ -43,8 +42,7 @@ client: client.o common.o \
 		client-reader.o \
 		client-sender.o \
 		client-receiver.o \
-		rto.o \
-		compression.o
+		rto.o
 
 comp-test: comp-test.o compression.o
 

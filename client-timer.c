@@ -4,6 +4,8 @@
 #include "rto.h"
 
 void handle_timer(union sigval args) {
+    static const struct packet *last_retrans_packet;
+
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;
     struct sendq *sendq = targs->sendq;
     struct retransq *retransq = targs->retransq;
@@ -17,10 +19,14 @@ void handle_timer(union sigval args) {
     // packets.
     const struct packet *p = sendq_oldest_packet(sendq);
 
-    if (p)
+    if (p) {
         retransq_push(retransq, p->seqnum);
+        last_retrans_packet = p;
+    }
 
-    sendq_halve_ssthresh(sendq);
+    if (p != last_retrans_packet)
+        sendq_halve_ssthresh(sendq);
+
     sendq_set_cwnd(sendq, 1);
     double_rto();
     set_timer(timer);
