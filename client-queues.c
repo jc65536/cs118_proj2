@@ -44,16 +44,6 @@ void update_ssthresh(struct sendq *q, size_t val){
     q->ssthresh = val;
 }
 
-//updates dupACKs and returns true if dupACKs == 3, false otherwise
-bool update_dupACKs(struct sendq *q, size_t val){
-    q->dupACKs = val;
-    if (q->dupACKs == 3){
-        q->state = 2; //move to FR
-        return true;
-    }
-    return false;
-}
-
 //if in slow start, inc cwnd by 1
 //else if in congestion avoidance, inc cwnd by 1/cwnd
 //else if in fast recovery, cwnd = ssthresh
@@ -82,6 +72,10 @@ bool handle_dup_ACK(struct sendq *q){
     else{
         q->dupACKs++; 
         if (q->dupACKs == 3){
+            q->state = 2;
+            int temp = q->ssthresh; 
+            q->ssthresh = q->cwnd/2;
+            q->cwnd = temp + 3; 
             return true;
         }
     }
