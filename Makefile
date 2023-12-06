@@ -50,4 +50,4 @@ clean:
 	rm -f server client comp-test output.txt project2.zip *.o
 
 zip: $(sources) $(headers) Makefile README
-	zip project2.zip $^
+	zip project2.zip $(filter-out comp%,$^)
