@@ -2,6 +2,8 @@
 
 #include "client.h"
 
+static long timeout = TIMEOUT;
+
 void handle_timer(union sigval args) {
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;
     struct sendq *sendq = targs->sendq;
@@ -18,12 +20,14 @@ void handle_timer(union sigval args) {
     if (p)
         retransq_push(retransq, p->seqnum);
     
-    sendq_halve_cwnd(sendq);
+    sendq_halve_ssthresh(sendq);
+    sendq_set_cwnd(sendq, 1);
+    timeout *= 2;
 }
 
 void set_timer(timer_t t) {
     // 10000000 ns = 10 ms
-    struct timespec tspec = {.tv_nsec = TIMEOUT};
+    struct timespec tspec = {.tv_sec = timeout};
     struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
     timer_settime(t, 0, &itspec, NULL);
 }
@@ -36,5 +40,5 @@ void unset_timer(timer_t t) {
 bool is_timer_set(timer_t t) {
     struct itimerspec itspec;
     timer_gettime(t, &itspec);
-    return !(itspec.it_value.tv_sec + itspec.it_value.tv_nsec == 0);
+    return itspec.it_value.tv_sec + itspec.it_value.tv_nsec;
 }

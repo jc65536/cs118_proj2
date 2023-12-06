@@ -48,9 +48,11 @@ bool sendq_flush_end(struct sendq *q, bool final);
  */
 const struct packet *sendq_oldest_packet(const struct sendq *q);
 
+uint32_t sendq_get_ssthresh(struct sendq *q);
 size_t sendq_get_cwnd(struct sendq *q);
-void sendq_inc_cwnd(struct sendq *q);
-void sendq_halve_cwnd(struct sendq *q);
+void sendq_set_cwnd(struct sendq *q, size_t cwnd);
+size_t sendq_inc_cwnd(struct sendq *q);
+void sendq_halve_ssthresh(struct sendq *q);
 
 struct retransq;
 

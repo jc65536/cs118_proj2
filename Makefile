@@ -27,7 +27,7 @@ default: build
 
 build: server client
 
-$(objects): $(headers) .env
+$(objects): $(headers) $(wildcard .env)
 
 server: server.o common.o \
 		server-queues.o \

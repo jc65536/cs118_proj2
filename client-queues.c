@@ -16,6 +16,7 @@ struct sendq {
     uint32_t seqnum;
     size_t bytes_written;
     struct sendq_slot *slot;
+    uint32_t ssthresh;
 
     struct sendq_slot {
         struct packet packet;
@@ -25,24 +26,33 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
-    q->cwnd = 10;
+    q->cwnd = 2;
+    q->ssthresh = 128;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
+}
+
+void sendq_halve_ssthresh(struct sendq *q) {
+    uint32_t ssthresh = q->ssthresh / 2;
+    if (ssthresh < 2)
+        ssthresh = 2;
+    q->ssthresh = ssthresh;
+}
+
+uint32_t sendq_get_ssthresh(struct sendq *q) {
+    return q->ssthresh;
 }
 
 size_t sendq_get_cwnd(struct sendq *q) {
     return q->cwnd;
 }
 
-void sendq_inc_cwnd(struct sendq *q) {
-    q->cwnd += 1;
+void sendq_set_cwnd(struct sendq *q, size_t cwnd) {
+    q->cwnd = cwnd;
 }
 
-void sendq_halve_cwnd(struct sendq *q) {
-    size_t cwnd = q->cwnd / 2;
-    if (cwnd == 0)
-        cwnd = 1;
-    q->cwnd = cwnd;
+size_t sendq_inc_cwnd(struct sendq *q) {
+    return q->cwnd += 1;
 }
 
 struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
@@ -127,7 +137,7 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
 }
 
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
-    if (q->send_next == q->begin + q->cwnd || q->send_next == q->end) {
+    if (q->send_next >= q->begin + q->cwnd || q->send_next == q->end) {
         return false;
     }
 
@@ -226,7 +236,7 @@ void profile(union sigval args) {
 
     if (!fd) {
         fd = creat("ignore/client-bufs.csv", S_IRUSR | S_IWUSR);
-        str_size = sprintf(str, "in_flight,read,retrans\n");
+        str_size = sprintf(str, "in_flight,read,retrans,cwnd,ssthresh\n");
         write(fd, str, str_size);
     }
 
@@ -237,6 +247,8 @@ void profile(union sigval args) {
     size_t in_flight = sendq->in_flight;
     size_t read = sendq->num_queued - in_flight;
     size_t retrans = retransq->num_queued;
-    str_size = sprintf(str, "%ld,%ld,%ld\n", in_flight, read, retrans);
+    size_t cwnd = sendq->cwnd;
+    uint32_t ssthresh = sendq->ssthresh;
+    str_size = sprintf(str, "%ld,%ld,%ld,%ld,%d\n", in_flight, read, retrans, cwnd, ssthresh);
     write(fd, str, str_size);
 }

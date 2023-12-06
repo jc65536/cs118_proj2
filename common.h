@@ -16,7 +16,7 @@
 #define CLIENT_PORT_TO 5001
 #define MAX_PAYLOAD_SIZE 1024
 #define WINDOW_SIZE 5
-#define TIMEOUT 100000000 // 10^8 ns = 100 ms
+#define TIMEOUT 1 // second
 #define MAX_SEQUENCE 1024
 
 #define NUM_THREADS 4

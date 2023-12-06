@@ -3,6 +3,12 @@
 
 #include "client.h"
 
+enum trans_state {
+    SLOW_START,
+    CONGESTION_AVOIDANCE,
+    FAST_RECOVERY
+};
+
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
@@ -36,6 +42,7 @@ void *receive_acks(struct receiver_args *args) {
     // server. Represents how many bytes we know the server has received.
     uint32_t last_acknum = 0;
     uint32_t acknum = 0;
+    enum trans_state state = SLOW_START;
 
     int dupcount = 0;
 
@@ -61,9 +68,21 @@ void *receive_acks(struct receiver_args *args) {
             // Update acknum to the latest acknum
             acknum = packet->seqnum;
 
-            if (acknum - last_acknum >= sendq_get_cwnd(sendq) * MAX_PAYLOAD_SIZE) {
-                sendq_inc_cwnd(sendq);
-                last_acknum = acknum;
+            switch (state) {
+            case SLOW_START:
+                if (sendq_inc_cwnd(sendq) > sendq_get_ssthresh(sendq))
+                    state = CONGESTION_AVOIDANCE;
+                break;
+            case CONGESTION_AVOIDANCE:
+                if (acknum - last_acknum >= sendq_get_cwnd(sendq) * MAX_PAYLOAD_SIZE) {
+                    sendq_inc_cwnd(sendq);
+                    last_acknum = acknum;
+                }
+                break;
+            case FAST_RECOVERY:
+                sendq_set_cwnd(sendq, sendq_get_ssthresh(sendq));
+                state = SLOW_START;
+                break;
             }
         } else {
             dupcount++;
@@ -76,7 +95,11 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
                 retransq_push(retransq, packet->seqnum);
-                sendq_halve_cwnd(sendq);
+                sendq_halve_ssthresh(sendq);
+                sendq_set_cwnd(sendq, sendq_get_ssthresh(sendq) + 3);
+                state = FAST_RECOVERY;
+            } else if (dupcount > 3) {
+                sendq_inc_cwnd(sendq);
             }
         }
     }
