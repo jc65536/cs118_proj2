@@ -19,14 +19,8 @@ bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 
 struct recvbuf;
 
-enum recv_type {
-    OK,
-    ERR,
-    END
-};
-
 struct recvbuf *recvbuf_new();
-enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
+void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t));
 seqnum_t recvbuf_get_acknum(const struct recvbuf *b);
 size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size);

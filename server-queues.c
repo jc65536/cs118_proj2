@@ -79,35 +79,28 @@ struct recvbuf_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
-enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
+void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
     if (p->seqnum < b->acknum || b->end + b->rwnd <= p->seqnum) {
         DBG(debug_recvbuf(format("Out of bounds %d", p->seqnum), b));
-        return ERR;
+        return;
     }
 
     struct recvbuf_slot *slot = recvbuf_get_slot(b, p->seqnum);
 
     if (slot->filled) {
         DBG(debug_recvbuf(format("Duplicate %d", p->seqnum), b));
-        return ERR;
+        return;
     }
 
     memcpy(&slot->packet, p, HEADER_SIZE + payload_size);
     slot->payload_size = payload_size;
     slot->filled = true;
 
-    enum recv_type ret = OK;
-
     if (p->seqnum == b->acknum) {
         size_t i = b->acknum;
-        const struct recvbuf_slot *next_slot;
 
-        while ((next_slot = recvbuf_get_slot(b, i))->filled) {
-            if (is_final(&next_slot->packet)) {
-                ret = END;
-            }
+        while (recvbuf_get_slot(b, i)->filled)
             i++;
-        }
 
         b->acknum = i;
     }
@@ -120,7 +113,7 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
 
     DBG(debug_recvbuf(format("Received %d", p->seqnum), b));
 
-    return ret;
+    return;
 }
 
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
