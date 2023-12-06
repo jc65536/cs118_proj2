@@ -43,6 +43,7 @@ client: client.o common.o \
 		client-reader.o \
 		client-sender.o \
 		client-receiver.o \
+		rto.o \
 		compression.o
 
 comp-test: comp-test.o compression.o

@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include "client.h"
+#include "rto.h"
 
 enum trans_state {
     SLOW_START,
@@ -53,6 +54,8 @@ void *receive_acks(struct receiver_args *args) {
             perror("Error receiving message");
             continue;
         }
+
+        log_ack(packet->seqnum);
 
         if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our

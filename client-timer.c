@@ -1,8 +1,7 @@
 #include <time.h>
 
 #include "client.h"
-
-static long timeout = TIMEOUT;
+#include "rto.h"
 
 void handle_timer(union sigval args) {
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;
@@ -12,23 +11,22 @@ void handle_timer(union sigval args) {
 #ifdef DEBUG
     printf("Timeout!!\n");
 #endif
-    
+
     // p is the oldest in-flight packet, or NULL if there are no in-flight
     // packets.
     const struct packet *p = sendq_oldest_packet(sendq);
 
     if (p)
         retransq_push(retransq, p->seqnum);
-    
+
     sendq_halve_ssthresh(sendq);
     sendq_set_cwnd(sendq, 1);
-    // timeout *= 2;
+    double_rto();
 }
 
 void set_timer(timer_t t) {
     // 10000000 ns = 10 ms
-    struct timespec tspec = {.tv_sec = timeout};
-    struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
+    struct itimerspec itspec = {.it_interval = rto, .it_value = rto};
     timer_settime(t, 0, &itspec, NULL);
 }
 

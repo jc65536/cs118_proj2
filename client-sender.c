@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include "client.h"
+#include "rto.h"
 
 static int send_sockfd;
 static struct sendq *sendq;
@@ -14,6 +15,8 @@ bool send_one(const struct packet *p, size_t packet_size) {
         perror("Error sending message");
         return false;
     }
+
+    log_send(p->seqnum);
 
     return true;
 }
