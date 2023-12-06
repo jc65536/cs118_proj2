@@ -97,6 +97,10 @@ void *receive_acks(struct receiver_args *args) {
                 break;
             }
         } else {
+#ifdef DEBUG
+            printf("Received ack %d\n", packet->seqnum);
+#endif
+
             dupcount++;
             if (dupcount == 3) {
 #ifdef DEBUG
@@ -115,7 +119,21 @@ void *receive_acks(struct receiver_args *args) {
                 sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
-                sendq_inc_cwnd(sendq);
+                // May help avoid timeouts
+                switch (dupcount) {
+                case 9:
+                case 16:
+                case 25:
+                case 36:
+#ifdef DEBUG
+                    printf("%d duplicate acks - retransmit again.\n", dupcount);
+#endif
+                    retransq_push(retransq, acknum);
+                    break;
+                default:
+                    sendq_inc_cwnd(sendq);
+                    break;
+                }
             } else {
                 // Violating RFC 5681 Section 3.2
                 // But that assumes a malicious receiver
