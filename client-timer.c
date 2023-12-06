@@ -9,6 +9,9 @@ void handle_timer(union sigval args) {
 
     printf("Timeout!!\n");
     //TODO: reset cwnd, ssthresh=cwnd/2,
+    update_cwnd(sendq, 1);
+    update_ssthresh(sendq, get_cwnd(sendq)/2);
+    
     // p is the oldest in-flight packet, or NULL if there are no in-flight
     // packets.
     const struct packet *p = sendq_oldest_packet(sendq);

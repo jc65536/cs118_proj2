@@ -10,7 +10,7 @@ struct sendq {
     atomic_size_t cwnd;
     atomic_size_t ssthresh;
     atomic_size_t dupACKs;
-    atomic_size_t state; //0=slow start, 1=congestion control, 2=FR
+    atomic_size_t state; //0=slow start, 1=congestion avoidance, 2=FR
     atomic_size_t in_flight;
     uint32_t seqnum;
     size_t bytes_written;
@@ -53,6 +53,40 @@ bool update_dupACKs(struct sendq *q, size_t val){
     }
     return false;
 }
+
+//if in slow start, inc cwnd by 1
+//else if in congestion avoidance, inc cwnd by 1/cwnd
+//else if in fast recovery, cwnd = ssthresh
+void handle_new_ACK(struct sendq *q){
+    q->dupACKs = 0;
+    if (q->state == 0){
+        q->cwnd += 1; 
+    }
+    else if (q->state == 1){
+        q->cwnd += 1/(float)(q->cwnd); 
+    }
+    else if (q->state == 2){
+        q->cwnd = q->ssthresh;
+        q->state = 1;
+    }
+}
+
+//if in FR, inc cwnd by 1
+//else inc dupACKs and check if it's == 3
+//if 3 dupACKs and not in FR, return true 
+bool handle_dup_ACK(struct sendq *q){
+    if (q->state == 2){
+        q->cwnd += 1; 
+        return false;
+    }
+    else{
+        q->dupACKs++; 
+        if (q->dupACKs == 3){
+            return true;
+        }
+    }
+}
+
 
 atomic_size_t get_cwnd(struct sendq *q){
     return q->cwnd;

@@ -104,5 +104,7 @@ void update_cwnd(struct sendq *q, size_t val);
 void update_ssthresh(struct sendq *q, size_t val);
 bool update_dupACKs(struct sendq *q, size_t val);//updates dupACKs and returns true if dupACKs == 3, false otherwise
 atomic_size_t get_cwnd(struct sendq *q);
+void handle_new_ACK(struct sendq *q);
+bool handle_dup_ACK(struct sendq *q);
 
 #endif
