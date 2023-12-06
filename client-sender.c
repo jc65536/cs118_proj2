@@ -17,10 +17,12 @@ bool send_one(const struct packet *p, size_t packet_size) {
         return false;
     }
 
-    log_send(p->seqnum);
+    if (!lossy_link)
+        log_send(p->seqnum);
 
-    if (!is_timer_set(timer))
+    if (!timer_set)
         set_timer(timer);
+
     return true;
 }
 

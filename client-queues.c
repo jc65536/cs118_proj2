@@ -13,7 +13,6 @@ struct sendq {
     atomic_size_t num_queued;
     atomic_size_t cwnd;
     atomic_size_t in_flight;
-    seqnum_t seqnum;
     size_t bytes_written;
     struct sendq_slot *slot;
     uint32_t ssthresh;
@@ -81,7 +80,7 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
         if (q->num_queued < SENDQ_CAPACITY) {
             q->slot = sendq_get_slot(q, q->end);
             q->slot->packet_size = HEADER_SIZE;
-            q->slot->packet.seqnum = q->seqnum;
+            q->slot->packet.seqnum = q->end;
             q->bytes_written = 0;
         }
     }
@@ -94,7 +93,6 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
         size_t rem_capacity = MAX_PAYLOAD_SIZE - q->bytes_written;
         memcpy(q->slot->packet.payload + q->bytes_written, src, rem_capacity);
         q->slot->packet_size = sizeof(struct packet);
-        q->seqnum++;
         
         sendq_flush_end(q, false);
 

@@ -63,6 +63,8 @@ bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t));
 extern seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
 extern size_t holes_len;
 
+extern bool timer_set;
+
 // Thread routines
 
 struct timer_args {

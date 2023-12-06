@@ -24,7 +24,7 @@ uint64_t abs_diff(uint64_t x, uint64_t y) {
 }
 
 void log_send(seqnum_t seqnum) {
-    if (lossy_link || flag)
+    if (flag)
         return;
 
     stored_seqnum = seqnum;
@@ -37,7 +37,7 @@ void log_ack(seqnum_t acknum) {
     static uint64_t srtt;
     static uint64_t rttvar;
 
-    if (lossy_link || !flag || acknum <= stored_seqnum)
+    if (!flag || acknum <= stored_seqnum)
         return;
 
     struct timespec endspec = {};
@@ -73,9 +73,6 @@ void log_ack(seqnum_t acknum) {
 }
 
 void double_rto() {
-    if (lossy_link)
-        return;
-
     if (consecutive_doubling == 2) {
 #ifdef DEBUG
         printf("Lossy link detected!!\n");

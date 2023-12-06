@@ -61,7 +61,8 @@ void *receive_acks(struct receiver_args *args) {
         memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
-        log_ack(packet->seqnum);
+        if (!lossy_link)
+            log_ack(packet->seqnum);
 
         if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our
