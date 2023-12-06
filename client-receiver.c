@@ -107,7 +107,7 @@ void *receive_acks(struct receiver_args *args) {
             } else {
                 // Violating RFC 5681 Section 3.2
                 // But that assumes a malicious receiver
-                // sendq_inc_cwnd(sendq);
+                sendq_inc_cwnd(sendq);
             }
         }
     }
