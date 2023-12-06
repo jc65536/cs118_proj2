@@ -1,2 +1,14 @@
-Please concisely describe your congestion control scheme here.
-No need to be verbose, brief descriptions/bullet points are preferred.
+We implemented the TCP congestion control scheme:
+- initial cwnd = 1, ssthresh = 6 (arbitrary small number)
+- Slow start
+    Each new ACK increases cwnd by 1
+    When cwnd >= ssthresh, we transition to congestion avoidance
+- Congestion avoidance
+    Each new ACK increases cwnd by 1/cwnd
+- Fast recovery
+    When 3 duplicate ACKs are detected, ssthresh is set to cwnd/2 and cwnd is set to ssthresh+3
+    With every additional duplicate ACK received in FR, cwnd increments by 1
+    When a new ACK is received, we return to congestion avoidance and set cwnd to ssthresh
+
+Upon timeout, ssthresh is set to cwnd/2 and cwnd is reset to 1 and we return to slow start
+
