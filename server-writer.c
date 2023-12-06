@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#include "compression.h"
 #include "server.h"
 
 static struct recvbuf *recvbuf;

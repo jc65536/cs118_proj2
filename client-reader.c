@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "client.h"
-#include "compression.h"
 
 static FILE *fp;
 static struct sendq *sendq;
