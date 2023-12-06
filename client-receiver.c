@@ -4,6 +4,9 @@
 #include "client.h"
 #include "rto.h"
 
+uint32_t holes[MAX_PAYLOAD_SIZE / sizeof(uint32_t)];
+size_t holes_len;
+
 enum trans_state {
     SLOW_START,
     CONGESTION_AVOIDANCE,
@@ -54,6 +57,9 @@ void *receive_acks(struct receiver_args *args) {
             perror("Error receiving message");
             continue;
         }
+
+        memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
+        holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(uint32_t);
 
         log_ack(packet->seqnum);
 

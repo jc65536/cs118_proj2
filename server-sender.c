@@ -12,7 +12,9 @@ bool send_one(uint32_t acknum) {
     p.rwnd = recvbuf_get_rwnd(recvbuf);
     p.seqnum = acknum;
 
-    ssize_t bytes_sent = send(send_sockfd, &p, HEADER_SIZE, 0);
+    size_t payload_size = recvbuf_write_holes(recvbuf, p.payload, MAX_PAYLOAD_SIZE);
+
+    ssize_t bytes_sent = send(send_sockfd, &p, HEADER_SIZE + payload_size, 0);
 
     if (bytes_sent == -1) {
         printf("Error sending ack\n");

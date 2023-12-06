@@ -21,6 +21,13 @@ void handle_timer(union sigval args) {
 
     if (p) {
         retransq_push(retransq, p->seqnum);
+
+        for (size_t i = 0; i < holes_len; i++) {
+            retransq_push(retransq, holes[i]);
+        }
+
+        holes_len = 0;
+
         last_retrans_packet = p;
     }
 

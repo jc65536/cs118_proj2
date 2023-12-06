@@ -67,6 +67,9 @@ bool retransq_push(struct retransq *q, uint32_t seqnum);
  */
 bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t));
 
+extern uint32_t holes[MAX_PAYLOAD_SIZE / sizeof(uint32_t)];
+extern size_t holes_len;
+
 // Thread routines
 
 struct timer_args {
@@ -106,11 +109,11 @@ void *read_and_compress(struct reader_args *args);
 void *send_packets(struct sender_args *args);
 void *receive_acks(struct receiver_args *args);
 
-void profile(union sigval args);
-
 // Debug
 
 void debug_sendq(const char *str, const struct sendq *q);
 void debug_retransq(const char *str, const struct retransq *q);
+
+void profile(union sigval args);
 
 #endif

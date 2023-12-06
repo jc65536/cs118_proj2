@@ -182,6 +182,20 @@ uint32_t recvbuf_get_acknum(const struct recvbuf *b) {
     return b->acknum;
 }
 
+size_t recvbuf_write_holes(struct recvbuf *b, char *dest, size_t size) {
+    size_t bytes_written = 0;
+    uint32_t seqnum = b->acknum;
+    for (size_t i = b->ack_index; i < b->end && bytes_written + sizeof(uint32_t) <= size; i++) {
+        const struct recvbuf_slot *slot = recvbuf_get_slot(b, i);
+        if (!slot->filled) {
+            *(uint32_t *) (dest + bytes_written) = seqnum;
+            bytes_written += sizeof(uint32_t);
+        }
+        seqnum += MAX_PAYLOAD_SIZE;
+    }
+    return bytes_written;
+}
+
 struct ackq {
     atomic_size_t num_queued;
     atomic_size_t begin;
