@@ -30,16 +30,6 @@ bool read_packet(struct packet *p, size_t *packet_size) {
     return true;
 }
 
-/*
-size_t read_file(char *dest, size_t req_size) {
-    return fread(dest, sizeof(char), req_size, fp);
-}
-
-void write_compressed(const char *src, size_t size) {
-    sendq_fill_end(sendq, src, size);
-}
-*/
-
 void *read_and_compress(struct reader_args *args) {
     sendq = args->sendq;
     const char *filename = args->filename;
@@ -55,10 +45,6 @@ void *read_and_compress(struct reader_args *args) {
 
     while (!read_done)
         sendq_write(sendq, read_packet);
-
-    // copy(read_file, write_compressed);
-
-    // sendq_flush_end(sendq, true);
 
     printf("Finished reading file\n");
     return NULL;

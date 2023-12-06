@@ -9,13 +9,6 @@
 #define SENDQ_CAPACITY 256
 #define RETRANSQ_CAPACITY 256
 
-static inline void print_send(const struct packet *pkt, bool resend) {
-    if (resend)
-        printf("Resend\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
-    else
-        printf("Send\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
-}
-
 struct sendq;
 
 struct sendq *sendq_new();

@@ -129,33 +129,6 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
     return ret;
 }
 
-size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size) {
-    if (b->final_read)
-        return 0;
-
-    while (!b->slot) {
-        if (b->begin < b->ack_index) {
-            b->slot = recvbuf_get_slot(b, b->begin);
-            b->bytes_read = 0;
-        }
-    }
-
-    if (b->bytes_read + size < b->slot->payload_size) {
-        memcpy(dest, b->slot->packet.payload + b->bytes_read, size);
-        b->bytes_read += size;
-        return size;
-    } else {
-        size_t rem_capacity = b->slot->payload_size - b->bytes_read;
-        memcpy(dest, b->slot->packet.payload + b->bytes_read, rem_capacity);
-        b->final_read = is_final(&b->slot->packet);
-        b->slot->filled = false;
-        b->slot = NULL;
-        b->begin++;
-        b->rwnd++;
-        return rem_capacity;
-    }
-}
-
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
     if (b->begin == b->ack_index) {
         return false;

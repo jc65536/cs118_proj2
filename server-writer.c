@@ -21,16 +21,6 @@ bool write_one(const struct packet *p, size_t payload_size) {
     return true;
 }
 
-/*
-void write_file(const char *src, size_t size) {
-    fwrite(src, sizeof(char), size, fp);
-}
-
-size_t read_compressed(char *dest, size_t size) {
-    return recvbuf_take_begin(recvbuf, dest, size);
-}
-*/
-
 void *decompress_and_write(struct writer_args *args) {
     recvbuf = args->recvbuf;
 
@@ -39,8 +29,6 @@ void *decompress_and_write(struct writer_args *args) {
 
     while (!write_done)
         recvbuf_pop(recvbuf, write_one);
-
-    // copy(read_compressed, write_file);
 
     printf("Wrote last packet\n");
     fclose(fp);

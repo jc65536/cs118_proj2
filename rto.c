@@ -5,7 +5,7 @@
 #include "rto.h"
 
 #define S_TO_NS ((uint64_t) 1000000000)
-#define RTO_LB  ((uint64_t)  500000000)
+#define RTO_LB ((uint64_t) 500000000)
 #define A 0.125
 #define B 0.25
 
@@ -77,7 +77,9 @@ void double_rto() {
         return;
 
     if (consecutive_doubling == 2) {
+#ifdef DEBUG
         printf("Lossy link detected!!\n");
+#endif
         is_lossy_link = true;
         rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
         return;
