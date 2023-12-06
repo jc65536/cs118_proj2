@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "client.h"
+#include "rto.h"
 
 struct sendq {
     atomic_size_t begin;
@@ -144,7 +145,7 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
     q->send_next++;
     q->in_flight++;
 
-    DBG(debug_sendq("Send", q));
+    DBG(debug_sendq(format("Send %d", slot->packet.seqnum), q));
     return true;
 }
 
@@ -201,7 +202,7 @@ bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t)) {
     q->begin++;
     q->num_queued--;
 
-    DBG(debug_retransq(format("Retransmitted %ld", seqnum), q));
+    DBG(debug_retransq(format("Retransmitted %d", seqnum), q));
     return true;
 }
 
@@ -227,7 +228,7 @@ void profile(union sigval args) {
 
     if (!fd) {
         fd = creat("ignore/client-bufs.csv", S_IRUSR | S_IWUSR);
-        str_size = sprintf(str, "in_flight,read,retrans,cwnd,ssthresh\n");
+        str_size = sprintf(str, "in_flight,read,retrans,cwnd,ssthresh,rto\n");
         write(fd, str, str_size);
     }
 
@@ -240,7 +241,8 @@ void profile(union sigval args) {
     size_t retrans = retransq->num_queued;
     size_t cwnd = sendq->cwnd;
     uint32_t ssthresh = sendq->ssthresh;
-    str_size = sprintf(str, "%ld,%ld,%ld,%ld,%d\n", in_flight, read, retrans, cwnd, ssthresh);
+    double rto_ = rto.tv_sec + rto.tv_nsec / (double) S_TO_NS;
+    str_size = sprintf(str, "%ld,%ld,%ld,%ld,%d,%f\n", in_flight, read, retrans, cwnd, ssthresh, rto_);
     write(fd, str, str_size);
 }
 #endif

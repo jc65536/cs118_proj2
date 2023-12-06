@@ -6,6 +6,8 @@
 
 #include "common.h"
 
+#define S_TO_NS ((uint64_t) 1000000000)
+
 extern struct timespec rto;
 extern bool lossy_link;
 

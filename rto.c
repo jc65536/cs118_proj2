@@ -4,12 +4,10 @@
 
 #include "rto.h"
 
-#define S_TO_NS ((uint64_t) 1000000000)
-#define RTO_LB ((uint64_t) 500000000)
 #define A 0.125
 #define B 0.25
 
-struct timespec rto = (struct timespec){.tv_sec = 0, .tv_nsec = RTO_LB};
+struct timespec rto = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
 
 static int consecutive_doubling = 0;
 bool lossy_link = false;
@@ -54,9 +52,9 @@ void log_ack(seqnum_t acknum) {
 
     uint64_t rto_ = srtt + 2 * rttvar;
 
-    if (rto_ < RTO_LB) {
-        rto.tv_sec = 0;
-        rto.tv_nsec = RTO_LB;
+    if (rto_ < S_TO_NS) {
+        rto.tv_sec = 1;
+        rto.tv_nsec = 0;
     } else {
         rto.tv_sec = rto_ / S_TO_NS;
         rto.tv_nsec = rto_ % S_TO_NS;
