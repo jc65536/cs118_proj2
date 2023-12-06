@@ -67,6 +67,8 @@ void *receive_acks(struct receiver_args *args) {
             // but not yet acked). If this number is 0, we can disarm the timer.
             if (sendq_pop(sendq, packet->seqnum) == 0)
                 unset_timer(timer);
+            else
+                set_timer(timer);
 
             // Update acknum to the latest acknum
             acknum = packet->seqnum;

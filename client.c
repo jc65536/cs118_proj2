@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
     timer_t timer;
 
-    struct timer_args timer_args = {sendq, retransq};
+    struct timer_args timer_args = {sendq, retransq, timer};
 
     struct sigevent sev = {.sigev_notify = SIGEV_THREAD,
                            .sigev_value.sival_ptr = &timer_args,

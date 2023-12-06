@@ -7,6 +7,7 @@ void handle_timer(union sigval args) {
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;
     struct sendq *sendq = targs->sendq;
     struct retransq *retransq = targs->retransq;
+    timer_t timer = targs->timer;
 
 #ifdef DEBUG
     printf("Timeout!!\n");
@@ -22,6 +23,7 @@ void handle_timer(union sigval args) {
     sendq_halve_ssthresh(sendq);
     sendq_set_cwnd(sendq, 1);
     double_rto();
+    set_timer(timer);
 }
 
 void set_timer(timer_t t) {

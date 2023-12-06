@@ -72,6 +72,7 @@ bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t));
 struct timer_args {
     struct sendq *sendq;
     struct retransq *retransq;
+    timer_t timer;
 };
 
 struct reader_args {
