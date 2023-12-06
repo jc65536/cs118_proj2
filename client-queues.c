@@ -53,7 +53,7 @@ void handle_new_ACK(struct sendq *q){
         q->cwnd += 1; 
     }
     else if (q->state == 1){
-        q->cwnd += 1/(float)(q->cwnd); 
+        q->cwnd += 1; //should be 1/cwnd TODO
     }
     else if (q->state == 2){
         q->cwnd = q->ssthresh;
@@ -79,6 +79,7 @@ bool handle_dup_ACK(struct sendq *q){
             return true;
         }
     }
+    return false;
 }
 
 
