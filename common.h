@@ -27,7 +27,6 @@ typedef void *(*voidfn)(void *);
 struct packet {
     struct { // For padding reasons; otherwise HEADER_SIZE would be 7
         uint32_t seqnum;
-        uint16_t rwnd;
         uint8_t flags;
     };
     char payload[MAX_PAYLOAD_SIZE];

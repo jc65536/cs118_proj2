@@ -147,10 +147,6 @@ bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t))
     return true;
 }
 
-uint16_t recvbuf_get_rwnd(const struct recvbuf *b) {
-    return b->rwnd;
-}
-
 uint32_t recvbuf_get_acknum(const struct recvbuf *b) {
     return b->acknum;
 }

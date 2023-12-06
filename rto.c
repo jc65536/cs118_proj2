@@ -9,7 +9,7 @@
 #define A 0.125
 #define B 0.25
 
-struct timespec rto = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
+struct timespec rto = (struct timespec){.tv_sec = 0, .tv_nsec = RTO_LB};
 
 static int consecutive_doubling = 0;
 bool is_lossy_link = false;
@@ -40,6 +40,7 @@ void log_ack(uint32_t acknum) {
     if (is_lossy_link || !flag || acknum <= stored_seqnum)
         return;
 
+
     struct timespec endspec = {};
     clock_gettime(CLOCK_REALTIME, &endspec);
     uint64_t rtt = (endspec.tv_sec - tspec.tv_sec) * S_TO_NS + (endspec.tv_nsec - tspec.tv_nsec);
@@ -52,7 +53,7 @@ void log_ack(uint32_t acknum) {
         srtt = (1 - A) * srtt + A * rtt;
     }
 
-    uint64_t rto_ = srtt + 4 * rttvar;
+    uint64_t rto_ = srtt + 2 * rttvar;
 
     if (rto_ < RTO_LB) {
         rto.tv_sec = 0;
@@ -85,10 +86,6 @@ void double_rto() {
         return;
     }
 
-    uint64_t rto_ = rto.tv_sec * S_TO_NS + rto.tv_nsec;
-    rto_ *= 2;
-    rto.tv_sec = rto_ / S_TO_NS;
-    rto.tv_nsec = rto_ % S_TO_NS;
     flag = false;
     consecutive_doubling++;
 }

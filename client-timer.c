@@ -13,6 +13,8 @@ void handle_timer(union sigval args) {
     printf("Timeout!!\n");
 #endif
 
+    size_t holes_len_ = holes_len;
+
     if (holes_len) {
         for (size_t i = 0; i < holes_len; i++)
             retransq_push(retransq, holes[i]);
@@ -26,7 +28,7 @@ void handle_timer(union sigval args) {
     }
 
     sendq_halve_ssthresh(sendq);
-    sendq_set_cwnd(sendq, 1);
+    sendq_set_cwnd(sendq, holes_len_ / 2);
     double_rto();
     set_timer(timer);
 }

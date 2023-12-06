@@ -9,7 +9,6 @@ static struct recvbuf *recvbuf;
 bool send_one(uint32_t acknum) {
     static struct packet p = {};
 
-    p.rwnd = recvbuf_get_rwnd(recvbuf);
     p.seqnum = acknum;
 
     size_t payload_size = recvbuf_write_holes(recvbuf, p.payload, MAX_PAYLOAD_SIZE);
