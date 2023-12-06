@@ -22,7 +22,7 @@ void handle_timer(union sigval args) {
     
     sendq_halve_ssthresh(sendq);
     sendq_set_cwnd(sendq, 1);
-    timeout *= 2;
+    // timeout *= 2;
 }
 
 void set_timer(timer_t t) {
