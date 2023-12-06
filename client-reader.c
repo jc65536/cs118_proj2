@@ -28,7 +28,7 @@ void *read_and_compress(struct reader_args *args) {
 
     printf("Opened file %s\n", filename);
 
-    compress(read_file, write_compressed);
+    copy(read_file, write_compressed);
 
     sendq_flush_end(sendq, true);
 
