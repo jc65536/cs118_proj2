@@ -6,7 +6,7 @@
 
 #include "common.h"
 
-#define SENDQ_CAPACITY 256
+#define SENDQ_CAPACITY 512
 #define RETRANSQ_CAPACITY 256
 
 struct sendq;

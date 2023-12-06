@@ -7,8 +7,8 @@
 
 #include "common.h"
 
-#define RECVQ_CAPACITY 256
-#define RECVBUF_CAPACITY 256
+#define RECVQ_CAPACITY 64
+#define RECVBUF_CAPACITY 512
 #define ACKQ_CAPACITY 256
 
 struct recvq;

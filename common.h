@@ -14,7 +14,7 @@
 #define CLIENT_PORT 6001
 #define SERVER_PORT 6002
 #define CLIENT_PORT_TO 5001
-#define MAX_PAYLOAD_SIZE 1192
+#define MAX_PAYLOAD_SIZE 1195
 #define WINDOW_SIZE 5
 #define MAX_SEQUENCE 1024
 
@@ -25,10 +25,8 @@
 typedef void *(*voidfn)(void *);
 
 struct packet {
-    struct { // For padding reasons; otherwise HEADER_SIZE would be 7
-        uint32_t seqnum;
-        uint8_t flags;
-    };
+    uint32_t seqnum;
+    uint8_t flags;
     char payload[MAX_PAYLOAD_SIZE];
 };
 

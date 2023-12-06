@@ -105,7 +105,12 @@ void *receive_acks(struct receiver_args *args) {
                 // Push the acknum of the duplicate acks onto retransmission
                 // queue. sender_thread will take care of the actual
                 // retransmission.
-                retransq_push(retransq, packet->seqnum);
+
+                for (size_t i = 0; i < holes_len; i++)
+                    retransq_push(retransq, holes[i]);
+
+                holes_len = 0;
+
                 sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
