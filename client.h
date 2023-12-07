@@ -108,10 +108,9 @@ void debug_sendq(const char *str, const struct sendq *q);
 void debug_retransq(const char *str, const struct retransq *q);
 
 //getter and setter functions
-void update_cwnd(struct sendq *q, size_t val);
 void update_ssthresh(struct sendq *q, size_t val);
-atomic_size_t get_cwnd(struct sendq *q);
 void handle_new_ACK(struct sendq *q);
 bool handle_dup_ACK(struct sendq *q);
+void handle_timeout(struct sendq *q);
 
 #endif

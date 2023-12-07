@@ -1,7 +1,7 @@
-#include <stdatomic.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <stdatomic.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "client.h"
@@ -28,7 +28,10 @@ struct sendq {
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
-    q->cwnd = SENDQ_CAPACITY;
+    q->cwnd = 1;
+    q->ssthresh = 6;
+    q->dupACKs = 0;
+    q->state = 0;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
 }
@@ -52,10 +55,13 @@ void update_ssthresh(struct sendq *q, size_t val) {
 // else if in congestion avoidance, inc cwnd by 1/cwnd
 // else if in fast recovery, cwnd = ssthresh
 void handle_new_ACK(struct sendq *q) {
-    float f = 0;
+    static float f = 0;
     q->dupACKs = 0;
     if (q->state == 0) {
         q->cwnd += 1;
+        if (q->cwnd >= q->ssthresh) {
+            q->state = 1;
+        }
     } else if (q->state == 1) {
         f += 1.0 / q->cwnd;
         if (f >= 1) {
@@ -85,6 +91,14 @@ bool handle_dup_ACK(struct sendq *q) {
         }
     }
     return false;
+}
+
+// update sendq values for timeout
+void handle_timeout(struct sendq *q) {
+    q->state = 0;
+    q->ssthresh = q->cwnd / 2;
+    q->cwnd = 1;
+    q->dupACKs = 0;
 }
 
 atomic_size_t get_cwnd(struct sendq *q) {
@@ -268,7 +282,7 @@ void profile(union sigval args) {
 
     if (!fd) {
         fd = creat("ignore/client-bufs.csv", S_IRUSR | S_IWUSR);
-        str_size = sprintf(str, "in_flight,read,retrans\n");
+        str_size = sprintf(str, "in_flight,read,retrans,cwnd,ssthresh\n");
         write(fd, str, str_size);
     }
 
@@ -279,6 +293,8 @@ void profile(union sigval args) {
     size_t in_flight = sendq->in_flight;
     size_t read = sendq->num_queued - in_flight;
     size_t retrans = retransq->num_queued;
-    str_size = sprintf(str, "%ld,%ld,%ld\n", in_flight, read, retrans);
+    size_t cwnd = sendq->cwnd;
+    size_t ssthresh = sendq->ssthresh;
+    str_size = sprintf(str, "%ld,%ld,%ld,%ld,%ld\n", in_flight, read, retrans, cwnd, ssthresh);
     write(fd, str, str_size);
 }

@@ -8,9 +8,8 @@ void handle_timer(union sigval args) {
     struct retransq *retransq = targs->retransq;
 
     printf("Timeout!!\n");
-    //TODO: reset cwnd, ssthresh=cwnd/2,
-    update_cwnd(sendq, 1);
-    update_ssthresh(sendq, get_cwnd(sendq)/2);
+    
+    handle_timeout(sendq);
     
     // p is the oldest in-flight packet, or NULL if there are no in-flight
     // packets.
@@ -22,7 +21,7 @@ void handle_timer(union sigval args) {
 
 void set_timer(timer_t t) {
     // 10000000 ns = 10 ms
-    struct timespec tspec = {.tv_nsec = TIMEOUT};
+    struct timespec tspec = {.tv_sec = 1, .tv_nsec = 0};
     struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
     timer_settime(t, 0, &itspec, NULL);
 }

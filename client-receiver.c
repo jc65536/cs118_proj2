@@ -44,8 +44,10 @@ void *receive_acks(struct receiver_args *args) {
 
         if (packet->seqnum > acknum) { //new ack
             handle_new_ACK(sendq); //updates cwnd, dupACKs, 
-            if (sendq_pop(sendq, packet->seqnum) == 0)
-                unset_timer(timer);
+            if (sendq_pop(sendq, packet->seqnum) == 0) //no more packets in queue
+                unset_timer(timer); 
+            else
+                set_timer(timer); //restart timer 
             acknum = packet->seqnum;
         } else {
             ;

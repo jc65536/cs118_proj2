@@ -1,0 +1,22 @@
+#!/bin/bash
+
+cleanup() {
+    kill -- -$server_pid
+    kill $client_pid
+}
+
+trap cleanup EXIT INT TERM
+
+make clean default
+
+set -m
+
+time ./server > /dev/null &
+server_pid=$!
+
+sleep 0.1
+
+./client "$1" &
+client_pid=$!
+
+wait $server_pid
