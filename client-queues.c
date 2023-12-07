@@ -21,13 +21,14 @@ struct sendq {
     struct sendq_slot {
         struct packet packet;
         size_t packet_size;
+        bool sacked;
     } *buf;
 };
 
 struct sendq *sendq_new() {
     struct sendq *q = calloc(1, sizeof(struct sendq));
     q->cwnd = 1;
-    q->ssthresh = 256;
+    q->ssthresh = 144;
     q->buf = calloc(SENDQ_CAPACITY, sizeof(q->buf[0]));
     return q;
 }
@@ -65,6 +66,7 @@ bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
     }
 
     struct sendq_slot *slot = sendq_get_slot(q, q->end);
+    slot->sacked = false;
 
     if (!write(&slot->packet, &slot->packet_size))
         return false;
@@ -76,46 +78,6 @@ bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
     return true;
 }
 
-void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
-    while (!q->slot) {
-        if (q->num_queued < SENDQ_CAPACITY) {
-            q->slot = sendq_get_slot(q, q->end);
-            q->slot->packet_size = HEADER_SIZE;
-            q->slot->packet.seqnum = q->end;
-            q->bytes_written = 0;
-        }
-    }
-
-    if (q->bytes_written + size < MAX_PAYLOAD_SIZE) {
-        memcpy(q->slot->packet.payload + q->bytes_written, src, size);
-        q->bytes_written += size;
-        q->slot->packet_size += size;
-    } else {
-        size_t rem_capacity = MAX_PAYLOAD_SIZE - q->bytes_written;
-        memcpy(q->slot->packet.payload + q->bytes_written, src, rem_capacity);
-        q->slot->packet_size = sizeof(struct packet);
-        
-        sendq_flush_end(q, false);
-
-        if (size > rem_capacity)
-            sendq_fill_end(q, src + rem_capacity, size - rem_capacity);
-    }
-}
-
-bool sendq_flush_end(struct sendq *q, bool final) {
-    if (!q->slot)
-        return false;
-    
-    if (final)
-        q->slot->packet.flags = FLAG_FINAL;
-    
-    q->slot = NULL;
-    q->end++;
-    q->num_queued++;
-    DBG(debug_sendq("Read", q));
-    return true;
-}
-
 size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
     // Round up
     if (acknum <= q->begin || q->send_next < acknum) {
@@ -123,7 +85,11 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
         return q->in_flight;
     }
 
+    while (acknum < q->send_next && sendq_get_slot(q, acknum)->sacked)
+        acknum++;
+
     size_t num_popped = acknum - q->begin;
+
     q->begin = acknum;
     q->in_flight -= num_popped;
     q->num_queued -= num_popped;
@@ -163,6 +129,16 @@ const struct packet *sendq_oldest_packet(const struct sendq *q) {
         return NULL;
     else
         return &sendq_get_slot(q, q->begin)->packet;
+}
+
+void sendq_sack(struct sendq *q, seqnum_t start, const seqnum_t *holes, size_t holes_len) {
+    if (start < q->begin || holes_len == 0)
+        return;
+    
+    for (seqnum_t i = start + 1; i < *holes; i++)
+        sendq_get_slot(q, i)->sacked = true;
+
+    sendq_sack(q, *holes, holes + 1, holes_len - 1);
 }
 
 struct retransq {

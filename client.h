@@ -34,8 +34,7 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
-void sendq_fill_end(struct sendq *q, const char *src, size_t size);
-bool sendq_flush_end(struct sendq *q, bool final);
+void sendq_sack(struct sendq *q, seqnum_t start, const seqnum_t *holes, size_t holes_len);
 
 /* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
  */
@@ -103,6 +102,14 @@ bool is_timer_set(timer_t t);
 void *read_and_compress(struct reader_args *args);
 void *send_packets(struct sender_args *args);
 void *receive_acks(struct receiver_args *args);
+
+enum trans_state {
+    SLOW_START,
+    CONGESTION_AVOIDANCE,
+    FAST_RECOVERY
+};
+
+extern enum trans_state state;
 
 // Debug
 

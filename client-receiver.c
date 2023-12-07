@@ -7,11 +7,7 @@
 seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
 size_t holes_len;
 
-enum trans_state {
-    SLOW_START,
-    CONGESTION_AVOIDANCE,
-    FAST_RECOVERY
-};
+enum trans_state state = SLOW_START;
 
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
@@ -46,7 +42,6 @@ void *receive_acks(struct receiver_args *args) {
     // server. Represents how many bytes we know the server has received.
     seqnum_t last_acknum = 0;
     seqnum_t acknum = 0;
-    enum trans_state state = SLOW_START;
 
     int dupcount = 0;
 
@@ -61,8 +56,9 @@ void *receive_acks(struct receiver_args *args) {
         memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
-        if (!lossy_link)
-            log_ack(packet->seqnum);
+        sendq_sack(sendq, packet->seqnum, holes, holes_len);
+
+        log_ack(packet->seqnum);
 
         if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our
@@ -111,6 +107,8 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
 
+                retransq_push(retransq, acknum);
+
                 for (size_t i = 0; i < holes_len; i++)
                     retransq_push(retransq, holes[i]);
 
@@ -119,21 +117,7 @@ void *receive_acks(struct receiver_args *args) {
                 sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
-                // May help avoid timeouts
-                switch (dupcount) {
-                case 9:
-                case 16:
-                case 25:
-                case 36:
-#ifdef DEBUG
-                    printf("%d duplicate acks - retransmit again.\n", dupcount);
-#endif
-                    retransq_push(retransq, acknum);
-                    break;
-                default:
-                    sendq_inc_cwnd(sendq);
-                    break;
-                }
+                sendq_inc_cwnd(sendq);
             } else {
                 // Violating RFC 5681 Section 3.2
                 // But that assumes a malicious receiver

@@ -17,8 +17,7 @@ bool send_one(const struct packet *p, size_t packet_size) {
         return false;
     }
 
-    if (!lossy_link)
-        log_send(p->seqnum);
+    log_send(p->seqnum);
 
     if (!timer_set)
         set_timer(timer);

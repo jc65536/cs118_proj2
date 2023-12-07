@@ -21,16 +21,15 @@ void handle_timer(union sigval args) {
         retransq_push(retransq, p->seqnum);
 
     for (size_t i = 0; i < holes_len; i++)
-        if (p->seqnum != holes[i])
-            retransq_push(retransq, holes[i]);
+        retransq_push(retransq, holes[i]);
 
     holes_len = 0;
 
-    if (!lossy_link) {
-        sendq_halve_ssthresh(sendq);
-        sendq_set_cwnd(sendq, 1);
-        double_rto();
-    }
+    sendq_halve_ssthresh(sendq);
+    sendq_set_cwnd(sendq, 1);
+    double_rto();
+
+    state = SLOW_START;
 
     set_timer(timer);
 }
