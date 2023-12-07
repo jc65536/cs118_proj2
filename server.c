@@ -16,6 +16,7 @@ int main() {
     struct ackq *ackq = ackq_new();
 
     // Profiling
+    #ifdef DEBUG
     timer_t ptimer;
     struct profiler_args profiler_args = {recvq, recvbuf, ackq};
     struct sigevent psev = {.sigev_notify = SIGEV_THREAD,
@@ -25,6 +26,7 @@ int main() {
     struct timespec tspec = {.tv_nsec = 100000000};
     struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
     timer_settime(ptimer, 0, &itspec, NULL);
+    #endif
 
     pthread_t receiver_thread, copier_thread, writer_thread, sender_thread;
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "server.h"
-#include "compression.h"
+#include "not-compression.h"
 
 static struct recvbuf *recvbuf;
 static FILE *fp;

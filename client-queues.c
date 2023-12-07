@@ -143,24 +143,6 @@ bool sendq_flush_end(struct sendq *q, bool final) {
     q->slot = NULL;
     q->end++;
     q->num_queued++;
-    debug_sendq("Read", q);
-    return true;
-}
-
-bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
-    if (q->num_queued == SENDQ_CAPACITY) {
-        return false;
-    }
-
-    struct sendq_slot *slot = sendq_get_slot(q, q->end);
-
-    if (!write(&slot->packet, &slot->packet_size))
-        return false;
-
-    q->end++;
-    q->num_queued++;
-
-    debug_sendq("Read", q);
     return true;
 }
 
@@ -169,7 +151,6 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     size_t ack_index = (acknum - 1) / MAX_PAYLOAD_SIZE + 1;
 
     if (ack_index <= q->begin || q->send_next < ack_index) {
-        debug_sendq(format("sendq can't pop %ld", ack_index), q);
         return q->in_flight;
     }
 
@@ -178,7 +159,6 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
     q->in_flight -= num_popped;
     q->num_queued -= num_popped;
 
-    debug_sendq(format("Received ack %d", ack_index), q);
     return q->in_flight;
 }
 
@@ -195,7 +175,6 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
     q->send_next++;
     q->in_flight++;
 
-    debug_sendq("Send", q);
     return true;
 }
 
@@ -240,7 +219,6 @@ bool retransq_push(struct retransq *q, uint32_t seqnum) {
     q->end++;
     q->num_queued++;
 
-    debug_retransq(format("Queued retransmit %d", seqnum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 
@@ -257,44 +235,5 @@ bool retransq_pop(struct retransq *q, bool (*cont)(uint32_t)) {
     q->begin++;
     q->num_queued--;
 
-    debug_retransq(format("Retransmitted %ld", seqnum / MAX_PAYLOAD_SIZE), q);
     return true;
-}
-
-void debug_sendq(const char *str, const struct sendq *q) {
-#ifdef DEBUG
-    printf("[sendq] %-32s  begin %6ld  end %6ld  send_next %6ld  num_queued %6ld  in_flight %6ld\n",
-           str, q->begin, q->end, q->send_next, q->num_queued, q->in_flight);
-#endif
-}
-
-void debug_retransq(const char *str, const struct retransq *q) {
-#ifdef DEBUG
-    printf("[retransq] %-32s  begin %6ld  end %6ld  num_queued %6ld\n",
-           str, q->begin, q->end, q->num_queued);
-#endif
-}
-
-void profile(union sigval args) {
-    static int fd;
-    static char str[256];
-    static size_t str_size;
-
-    if (!fd) {
-        fd = creat("ignore/client-bufs.csv", S_IRUSR | S_IWUSR);
-        str_size = sprintf(str, "in_flight,read,retrans,cwnd,ssthresh\n");
-        write(fd, str, str_size);
-    }
-
-    struct profiler_args *pargs = (struct profiler_args *) args.sival_ptr;
-    const struct sendq *sendq = pargs->sendq;
-    const struct retransq *retransq = pargs->retransq;
-
-    size_t in_flight = sendq->in_flight;
-    size_t read = sendq->num_queued - in_flight;
-    size_t retrans = retransq->num_queued;
-    size_t cwnd = sendq->cwnd;
-    size_t ssthresh = sendq->ssthresh;
-    str_size = sprintf(str, "%ld,%ld,%ld,%ld,%ld\n", in_flight, read, retrans, cwnd, ssthresh);
-    write(fd, str, str_size);
 }

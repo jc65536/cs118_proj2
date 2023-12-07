@@ -7,12 +7,6 @@
 #include "client.h"
 
 int main(int argc, char *argv[]) {
-    // read filename from command line argument
-    if (argc != 2) {
-        printf("Usage: ./client <filename>\n");
-        return 1;
-    }
-
     char *filename = argv[1];
 
     // TODO: Read from file, and initiate reliable data transfer to the server
@@ -28,17 +22,6 @@ int main(int argc, char *argv[]) {
                            .sigev_notify_function = handle_timer};
 
     timer_create(CLOCK_REALTIME, &sev, &timer);
-
-    // Profiling
-    timer_t ptimer;
-    struct profiler_args profiler_args = {sendq, retransq};
-    struct sigevent psev = {.sigev_notify = SIGEV_THREAD,
-                           .sigev_value.sival_ptr = &profiler_args,
-                           .sigev_notify_function = profile};
-    timer_create(CLOCK_REALTIME, &psev, &ptimer);
-    struct timespec tspec = {.tv_nsec = 100000000};
-    struct itimerspec itspec = {.it_interval = tspec, .it_value = tspec};
-    timer_settime(ptimer, 0, &itspec, NULL);
 
     pthread_t reader_thread, sender_thread, receiver_thread;
 

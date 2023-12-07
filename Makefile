@@ -35,7 +35,7 @@ server: server.o common.o \
 		server-copier.o \
 		server-writer.o \
 		server-sender.o \
-		compression.o
+		not-compression.o
 
 client: client.o common.o \
 		client-timer.o \
@@ -43,9 +43,7 @@ client: client.o common.o \
 		client-reader.o \
 		client-sender.o \
 		client-receiver.o \
-		compression.o
-
-comp-test: comp-test.o compression.o
+		not-compression.o
 
 clean:
 	rm -f server client comp-test output.txt project2.zip *.o

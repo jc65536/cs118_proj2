@@ -4,12 +4,6 @@
 
 #include "server.h"
 
-/* Performance (% of time)
- * recvbuf_take_begin   60.99
- * ackq_pop             15.64
- * recvq_pop            14.08
- */
-
 struct recvq {
     atomic_size_t num_queued;
     atomic_size_t begin;
@@ -80,26 +74,22 @@ struct recvbuf_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
-enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
+void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
     size_t packet_index = p->seqnum / MAX_PAYLOAD_SIZE;
 
     if (packet_index < b->ack_index || b->end + b->rwnd <= packet_index) {
-        debug_recvbuf(format("Out of bounds %ld", packet_index), b);
-        return ERR;
+        return;
     }
 
     struct recvbuf_slot *slot = recvbuf_get_slot(b, packet_index);
 
     if (slot->filled) {
-        debug_recvbuf(format("Duplicate %ld", packet_index), b);
-        return ERR;
+        return;
     }
 
     memcpy(&slot->packet, p, HEADER_SIZE + payload_size);
     slot->payload_size = payload_size;
     slot->filled = true;
-
-    enum recv_type ret = OK;
 
     if (packet_index == b->ack_index) {
         size_t i = b->ack_index;
@@ -108,9 +98,6 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
 
         while ((next_slot = recvbuf_get_slot(b, i))->filled) {
             new_acknum += next_slot->payload_size;
-            if (is_final(&next_slot->packet)) {
-                ret = END;
-            }
             i++;
         }
 
@@ -123,10 +110,6 @@ enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t pa
         b->end += end_inc;
         b->rwnd -= end_inc;
     }
-
-    debug_recvbuf(format("Received %ld", packet_index), b);
-
-    return ret;
 }
 
 size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size) {
@@ -154,24 +137,6 @@ size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size) {
         b->rwnd++;
         return rem_capacity;
     }
-}
-
-bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
-    if (b->begin == b->ack_index) {
-        return false;
-    }
-
-    struct recvbuf_slot *slot = recvbuf_get_slot(b, b->begin);
-    slot->filled = false;
-
-    if (!cont(&slot->packet, slot->payload_size))
-        return false;
-
-    b->begin++;
-    b->rwnd++;
-
-    debug_recvbuf("Wrote", b);
-    return true;
 }
 
 uint16_t recvbuf_get_rwnd(const struct recvbuf *b) {
@@ -202,8 +167,6 @@ bool ackq_push(struct ackq *q, uint32_t acknum) {
 
     q->end++;
     q->num_queued++;
-
-    debug_ackq(format("Queued ack %d", acknum / MAX_PAYLOAD_SIZE), q);
     return true;
 }
 
@@ -220,46 +183,5 @@ bool ackq_pop(struct ackq *q, bool (*cont)(uint32_t)) {
     q->begin++;
     q->num_queued--;
 
-    debug_ackq(format("Sent ack %d", acknum / MAX_PAYLOAD_SIZE), q);
     return true;
-}
-
-// Debug
-
-void debug_recvbuf(const char *str, const struct recvbuf *b) {
-#ifdef DEBUG
-    printf("[recvbuf] %-32s  rwnd %6ld  begin %6ld  end %6ld  ack_index %6ld  acknum %8d\n",
-           str, b->rwnd, b->begin, b->end, b->ack_index, b->acknum);
-#endif
-}
-
-void debug_ackq(const char *str, const struct ackq *q) {
-#ifdef DEBUG
-    printf("[ackq] %-32s  queued %6ld  begin %6ld  end %6ld\n",
-           str, q->num_queued, q->begin, q->end);
-#endif
-}
-
-void profile(union sigval args) {
-    static int fd;
-    static char str[256];
-    static size_t str_size;
-
-    if (!fd) {
-        fd = creat("ignore/server-bufs.csv", S_IRUSR | S_IWUSR);
-        str_size = sprintf(str, "recvq,acked,recvbuf,ackq\n");
-        write(fd, str, str_size);
-    }
-
-    struct profiler_args *pargs = (struct profiler_args *) args.sival_ptr;
-    const struct recvq *recvq = pargs->recvq;
-    const struct recvbuf *recvbuf = pargs->recvbuf;
-    const struct ackq *ackq = pargs->ackq;
-
-    size_t rq = recvq->num_queued;
-    size_t acked = recvbuf->ack_index - recvbuf->begin;
-    size_t rbuf = RECVBUF_CAPACITY - recvbuf->rwnd - acked;
-    size_t aq = ackq->num_queued;
-    str_size = sprintf(str, "%ld,%ld,%ld,%ld\n", rq,acked,rbuf,aq);
-    write(fd, str, str_size);
 }

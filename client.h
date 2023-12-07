@@ -10,21 +10,9 @@
 #define SENDQ_CAPACITY 256
 #define RETRANSQ_CAPACITY 256
 
-static inline void print_send(const struct packet *pkt, bool resend) {
-    if (resend)
-        printf("Resend\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
-    else
-        printf("Send\tseq %7d\t%s\n", pkt->seqnum, is_final(pkt) ? "LAST" : "");
-}
-
 struct sendq;
 
 struct sendq *sendq_new();
-
-/* If possible, call write to write a packet into q. Returns whether the write
- * was successful.
- */
-bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *));
 
 /* If possible, pop packets from q until acknum. Returns the remaining number of
  * in-flight packets (number of packets sent but not ACKed).
@@ -86,11 +74,6 @@ struct receiver_args {
     timer_t timer;
 };
 
-struct profiler_args {
-    const struct sendq *sendq;
-    const struct retransq *retransq;
-};
-
 void handle_timer(union sigval args);
 void set_timer(timer_t t);
 void unset_timer(timer_t t);
@@ -99,13 +82,6 @@ bool is_timer_set(timer_t t);
 void *read_and_compress(struct reader_args *args);
 void *send_packets(struct sender_args *args);
 void *receive_acks(struct receiver_args *args);
-
-void profile(union sigval args);
-
-// Debug
-
-void debug_sendq(const char *str, const struct sendq *q);
-void debug_retransq(const char *str, const struct retransq *q);
 
 //getter and setter functions
 void update_ssthresh(struct sendq *q, size_t val);

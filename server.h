@@ -19,15 +19,8 @@ bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 
 struct recvbuf;
 
-enum recv_type {
-    OK,
-    ERR,
-    END
-};
-
 struct recvbuf *recvbuf_new();
-enum recv_type recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
-bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t));
+void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
 uint16_t recvbuf_get_rwnd(const struct recvbuf *b);
 uint32_t recvbuf_get_acknum(const struct recvbuf *b);
 size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size);
@@ -59,22 +52,9 @@ struct sender_args {
     struct recvbuf *recvbuf;
 };
 
-struct profiler_args {
-    const struct recvq *recvq;
-    const struct recvbuf *recvbuf;
-    const struct ackq *ackq;
-};
-
 void *receive_packets(struct receiver_args *args);
 void *copy_packets(struct copier_args *args);
 void *decompress_and_write(struct writer_args *args);
 void *send_acks(struct sender_args *args);
-
-void profile(union sigval args);
-
-// Debug utils
-
-void debug_recvbuf(const char *str, const struct recvbuf *q);
-void debug_ackq(const char *str, const struct ackq *q);
 
 #endif

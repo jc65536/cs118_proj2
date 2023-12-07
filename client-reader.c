@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "client.h"
-#include "compression.h"
+#include "not-compression.h"
 
 static FILE *fp;
 static struct sendq *sendq;
@@ -21,17 +21,8 @@ void *read_and_compress(struct reader_args *args) {
 
     // Open file for reading
     fp = fopen(filename, "rb");
-    if (fp == NULL) {
-        perror("Error opening file");
-        exit(1);
-    }
-
-    printf("Opened file %s\n", filename);
 
     copy(read_file, write_compressed);
-
     sendq_flush_end(sendq, true);
-
-    printf("Finished reading file\n");
     return NULL;
 }
