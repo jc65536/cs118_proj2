@@ -167,11 +167,13 @@ seqnum_t recvbuf_get_acknum(const struct recvbuf *b) {
 
 size_t recvbuf_write_holes(struct recvbuf *b, char *dest, size_t size) {
     size_t bytes_written = 0;
-    for (size_t i = b->acknum + 1; i < b->end && bytes_written + sizeof(seqnum_t) <= size; i++) {
+    bool hole = false;
+    for (size_t i = b->acknum; i < b->end && bytes_written + sizeof(seqnum_t) <= size; i++) {
         const struct recvbuf_slot *slot = recvbuf_get_slot(b, i);
-        if (!slot->filled) {
+        if (slot->filled != hole) {
             *(seqnum_t *) (dest + bytes_written) = i;
             bytes_written += sizeof(seqnum_t);
+            hole = slot->filled;
         }
     }
     return bytes_written;

@@ -34,7 +34,7 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
-void sendq_sack(struct sendq *q, seqnum_t start, const seqnum_t *holes, size_t holes_len);
+void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len);
 
 /* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
  */
@@ -61,6 +61,8 @@ bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t));
 
 extern seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
 extern size_t holes_len;
+
+void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len);
 
 extern bool timer_set;
 

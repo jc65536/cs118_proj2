@@ -9,6 +9,18 @@ size_t holes_len;
 
 enum trans_state state = SLOW_START;
 
+void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len) {
+    if (holes_len < 2)
+        return;
+    
+    printf("Queuing hole %d..%d\n", holes[0], holes[1]);
+
+    for (seqnum_t i = holes[0]; i < holes[1]; i++)
+        retransq_push(q, i);
+    
+    retrans_holes(q, holes + 2, holes_len - 2);
+}
+
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
@@ -56,7 +68,8 @@ void *receive_acks(struct receiver_args *args) {
         memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
-        sendq_sack(sendq, packet->seqnum, holes, holes_len);
+        if (holes_len >= 3)
+            sendq_sack(sendq, holes + 1, holes_len - 1);
 
         log_ack(packet->seqnum);
 
@@ -107,11 +120,7 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
 
-                retransq_push(retransq, acknum);
-
-                for (size_t i = 0; i < holes_len; i++)
-                    retransq_push(retransq, holes[i]);
-
+                retrans_holes(retransq, holes, holes_len);
                 holes_len = 0;
 
                 sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);

@@ -85,8 +85,12 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
         return q->in_flight;
     }
 
+    seqnum_t old_acknum = acknum;
+
     while (acknum < q->send_next && sendq_get_slot(q, acknum)->sacked)
         acknum++;
+
+    printf("Consumed %d sacks\n", acknum - old_acknum);
 
     size_t num_popped = acknum - q->begin;
 
@@ -131,14 +135,26 @@ const struct packet *sendq_oldest_packet(const struct sendq *q) {
         return &sendq_get_slot(q, q->begin)->packet;
 }
 
-void sendq_sack(struct sendq *q, seqnum_t start, const seqnum_t *holes, size_t holes_len) {
-    if (start < q->begin || holes_len == 0)
+void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
+    if (hills_len < 2)
         return;
+
+    seqnum_t hill_begin = hills[0];
+    seqnum_t hill_end = hills[1];
+
+    if (hill_end <= q->begin) {
+        sendq_sack(q, hills + 2, hills_len - 2);
+        return;
+    }
+
+    if (hill_begin < q->begin)
+        hill_begin = q->begin;
+        
     
-    for (seqnum_t i = start + 1; i < *holes; i++)
+    for (seqnum_t i = hill_begin; i < hill_end; i++)
         sendq_get_slot(q, i)->sacked = true;
 
-    sendq_sack(q, *holes, holes + 1, holes_len - 1);
+    sendq_sack(q, hills + 2, hills_len - 2);
 }
 
 struct retransq {

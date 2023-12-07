@@ -17,12 +17,10 @@ void handle_timer(union sigval args) {
 
     const struct packet *p = sendq_oldest_packet(sendq);
 
-    if (p)
+    if (p && holes_len > 0 && p->seqnum < holes[0])
         retransq_push(retransq, p->seqnum);
 
-    for (size_t i = 0; i < holes_len; i++)
-        retransq_push(retransq, holes[i]);
-
+    retrans_holes(retransq, holes, holes_len);
     holes_len = 0;
 
     sendq_halve_ssthresh(sendq);
