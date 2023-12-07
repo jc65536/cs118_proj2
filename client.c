@@ -6,7 +6,7 @@
 
 #include "client.h"
 
-int main(int argc, char *argv[]) {
+int main(int, char *argv[]) {
     char *filename = argv[1];
 
     // TODO: Read from file, and initiate reliable data transfer to the server

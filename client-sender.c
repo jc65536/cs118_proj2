@@ -8,8 +8,7 @@ static int send_sockfd;
 static struct sendq *sendq;
 
 bool send_one(const struct packet *p, size_t packet_size) {
-    ssize_t bytes_sent = send(send_sockfd, p, packet_size, 0);
-
+    send(send_sockfd, p, packet_size, 0);
     return true;
 }
 
