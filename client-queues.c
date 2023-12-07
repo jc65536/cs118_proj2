@@ -81,7 +81,7 @@ bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
 size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
     if (acknum <= q->begin)
         acknum = q->begin;
-    
+
     if (q->send_next < acknum)
         acknum = q->send_next;
 
@@ -136,8 +136,13 @@ const struct packet *sendq_oldest_packet(const struct sendq *q) {
 }
 
 void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
-    if (hills_len < 2)
+    if (hills_len == 0)
         return;
+
+    if (hills_len == 1) {
+        sendq_get_slot(q, *hills)->sacked = true;
+        return;
+    }
 
     seqnum_t hill_begin = hills[0];
     seqnum_t hill_end = hills[1];
@@ -149,8 +154,7 @@ void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
 
     if (hill_begin < q->begin)
         hill_begin = q->begin;
-        
-    
+
     for (seqnum_t i = hill_begin; i < hill_end; i++)
         sendq_get_slot(q, i)->sacked = true;
 
@@ -159,6 +163,28 @@ void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
 
 size_t sendq_get_in_flight(struct sendq *q) {
     return q->in_flight;
+}
+
+void sendq_retrans_holes(struct sendq *q, struct retransq *retransq) {
+    for (size_t i = 0; i + 1 < holes_len; i += 2) {
+        seqnum_t hole_begin = holes[i];
+        seqnum_t hole_end = holes[i + 1];
+
+        if (hole_begin < q->begin)
+            hole_begin = q->begin;
+        
+        if (q->send_next < hole_end)
+            hole_end = q->send_next;
+        
+        if (hole_end <= q->begin || q->send_next <= hole_begin)
+            continue;
+
+        for (seqnum_t n = hole_begin; n < hole_end; n++) {
+            const struct sendq_slot *slot = sendq_get_slot(q, n);
+            if (!slot->sacked)
+                retransq_push(retransq, n);
+        }
+    }
 }
 
 struct retransq {

@@ -10,6 +10,10 @@
 #define RETRANSQ_CAPACITY 256
 
 struct sendq;
+struct retransq;
+
+extern seqnum_t *holes;
+extern size_t holes_len;
 
 struct sendq *sendq_new();
 
@@ -38,6 +42,8 @@ void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len);
 
 size_t sendq_get_in_flight(struct sendq *q);
 
+void sendq_retrans_holes(struct sendq *q, struct retransq *retransq);
+
 /* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
  */
 const struct packet *sendq_oldest_packet(const struct sendq *q);
@@ -47,8 +53,6 @@ size_t sendq_get_cwnd(struct sendq *q);
 void sendq_set_cwnd(struct sendq *q, size_t cwnd);
 size_t sendq_inc_cwnd(struct sendq *q);
 uint32_t sendq_halve_ssthresh(struct sendq *q);
-
-struct retransq;
 
 struct retransq *retransq_new();
 
@@ -60,11 +64,6 @@ bool retransq_push(struct retransq *q, seqnum_t seqnum);
  * a seqnum was popped and cont was successful.
  */
 bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t));
-
-extern seqnum_t *holes;
-extern size_t holes_len;
-
-void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len);
 
 extern bool timer_set;
 

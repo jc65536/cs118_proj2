@@ -15,14 +15,7 @@ void handle_timer(union sigval args) {
     printf("Timeout!!\n");
 #endif
 
-    const struct packet *p = sendq_oldest_packet(sendq);
-
-    if (p && (holes_len == 0 || p->seqnum < holes[0]))
-        retransq_push(retransq, p->seqnum);
-
-    retrans_holes(retransq, holes, holes_len);
-    holes_len = 0;
-
+    sendq_retrans_holes(sendq, retransq);
     sendq_halve_ssthresh(sendq);
     sendq_set_cwnd(sendq, 1);
     double_rto();

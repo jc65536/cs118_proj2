@@ -9,16 +9,6 @@ size_t holes_len;
 
 enum trans_state state = SLOW_START;
 
-void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len) {
-    if (holes_len < 2)
-        return;
-    
-    for (seqnum_t i = holes[0]; i < holes[1]; i++)
-        retransq_push(q, i);
-    
-    retrans_holes(q, holes + 2, holes_len - 2);
-}
-
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
     struct retransq *retransq = args->retransq;
@@ -47,6 +37,7 @@ void *receive_acks(struct receiver_args *args) {
     printf("Connected to proxy (recv)\n");
 
     struct packet *packet = malloc(sizeof(struct packet));
+    holes = malloc(MAX_PAYLOAD_SIZE);
 
     // acknum is always set to the largest acknum we have received from the
     // server. Represents how many bytes we know the server has received.
@@ -54,9 +45,6 @@ void *receive_acks(struct receiver_args *args) {
     seqnum_t acknum = 0;
 
     int dupcount = 0;
-
-    holes = malloc(MAX_PAYLOAD_SIZE);
-    seqnum_t *holes_ = malloc(MAX_PAYLOAD_SIZE);
 
     while (true) {
         ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
@@ -66,13 +54,7 @@ void *receive_acks(struct receiver_args *args) {
             continue;
         }
 
-        memcpy(holes_, packet->payload, bytes_recvd - HEADER_SIZE);
-
-        // Swap so we're not changing holes as someone else is reading it
-        seqnum_t *tmp = holes;
-        holes = holes_;
-        holes_ = tmp;
-
+        memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
         if (holes_len >= 3)
@@ -80,13 +62,14 @@ void *receive_acks(struct receiver_args *args) {
         
         log_ack(packet->seqnum);
 
-        const size_t num_popped = sendq_pop(sendq, packet->seqnum);
-
-        if (num_popped) {
+        if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our
             // buffer until the latest acknum
 
             dupcount = 0;
+            acknum = packet->seqnum;
+
+            sendq_pop(sendq, acknum);
 
             if (sendq_get_in_flight(sendq))
                 set_timer(timer);
@@ -110,6 +93,9 @@ void *receive_acks(struct receiver_args *args) {
                 break;
             }
         } else {
+#ifdef DEBUG
+            printf("Received ack %d\n", packet->seqnum);
+#endif
             dupcount++;
             if (dupcount == 3) {
 #ifdef DEBUG
@@ -120,9 +106,7 @@ void *receive_acks(struct receiver_args *args) {
                 // queue. sender_thread will take care of the actual
                 // retransmission.
 
-                retrans_holes(retransq, holes, holes_len);
-                holes_len = 0;
-
+                sendq_retrans_holes(sendq, retransq);
                 sendq_set_cwnd(sendq, sendq_halve_ssthresh(sendq) + 3);
                 state = FAST_RECOVERY;
             } else if (dupcount > 3) {
