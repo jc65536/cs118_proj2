@@ -167,11 +167,7 @@ size_t sendq_get_in_flight(struct sendq *q) {
 
 void sendq_retrans_holes(struct sendq *q, struct retransq *retransq) {
     if (holes_len < 2) {
-        for (seqnum_t n = q->begin; n < q->send_next; n++) {
-            const struct sendq_slot *slot = sendq_get_slot(q, n);
-            if (!slot->sacked)
-                retransq_push(retransq, n);
-        }
+        retransq_push(retransq, q->begin);
         return;
     }
 
@@ -194,6 +190,8 @@ void sendq_retrans_holes(struct sendq *q, struct retransq *retransq) {
                 retransq_push(retransq, n);
         }
     }
+
+    holes_len = 0;
 }
 
 struct retransq {
