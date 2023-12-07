@@ -62,14 +62,14 @@ void *receive_acks(struct receiver_args *args) {
         
         log_ack(packet->seqnum);
 
+        sendq_pop(sendq, packet->seqnum);
+
         if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our
             // buffer until the latest acknum
 
             dupcount = 0;
             acknum = packet->seqnum;
-
-            sendq_pop(sendq, acknum);
 
             if (sendq_get_in_flight(sendq))
                 set_timer(timer);
@@ -94,12 +94,12 @@ void *receive_acks(struct receiver_args *args) {
             }
         } else {
 #ifdef DEBUG
-            printf("Received ack %d\n", packet->seqnum);
+            // printf("Received ack %d\n", packet->seqnum);
 #endif
             dupcount++;
             if (dupcount == 3) {
 #ifdef DEBUG
-                printf("3 duplicate acks!\n");
+                printf("3 duplicate acks! (%d)\n", packet->seqnum);
 #endif
 
                 // Push the acknum of the duplicate acks onto retransmission
