@@ -7,7 +7,9 @@
 #define A 0.125
 #define B 0.25
 
-struct timespec rto = (struct timespec){.tv_sec = 1, .tv_nsec = 0};
+#define RTO_LB 1000000000
+
+struct timespec rto = (struct timespec){.tv_sec = RTO_LB / S_TO_NS, .tv_nsec = RTO_LB % S_TO_NS};
 
 static int consecutive_doubling = 0;
 bool lossy_link = false;
@@ -52,14 +54,11 @@ void log_ack(seqnum_t acknum) {
 
     uint64_t rto_ = srtt + 2 * rttvar;
 
-    if (rto_ < S_TO_NS) {
-        rto.tv_sec = 1;
-        rto.tv_nsec = 0;
-    } else {
-        rto.tv_sec = rto_ / S_TO_NS;
-        rto.tv_nsec = rto_ % S_TO_NS;
-    }
+    if (rto_ < RTO_LB)
+        rto_ = RTO_LB;
 
+    rto.tv_sec = rto_ / S_TO_NS;
+    rto.tv_nsec = rto_ % S_TO_NS;
     consecutive_doubling = 0;
 
 #ifdef DEBUG
@@ -78,7 +77,7 @@ void double_rto() {
 #ifdef DEBUG
         printf("Lossy link detected!!\n");
 #endif
-        rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
+        rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 20};
         lossy_link = true;
         return;
     }
