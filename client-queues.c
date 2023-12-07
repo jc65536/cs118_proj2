@@ -10,7 +10,7 @@ struct sendq {
     atomic_size_t cwnd;
     atomic_size_t ssthresh;
     atomic_size_t dupACKs;
-    atomic_size_t state; //0=slow start, 1=congestion avoidance, 2=FR
+    atomic_size_t state; // 0=slow start, 1=congestion avoidance, 2=FR
     atomic_size_t in_flight;
     uint32_t seqnum;
     size_t bytes_written;
@@ -33,57 +33,57 @@ struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
 }
 
-void update_cwnd(struct sendq *q, size_t val){
+void update_cwnd(struct sendq *q, size_t val) {
     q->cwnd = val;
-    if (q->cwnd >= q->ssthresh && q->state == 0){
-        q->state = 1; //move to congestion control
+    if (q->cwnd >= q->ssthresh && q->state == 0) {
+        q->state = 1; // move to congestion control
     }
 }
 
-void update_ssthresh(struct sendq *q, size_t val){
+void update_ssthresh(struct sendq *q, size_t val) {
     q->ssthresh = val;
 }
 
-//if in slow start, inc cwnd by 1
-//else if in congestion avoidance, inc cwnd by 1/cwnd
-//else if in fast recovery, cwnd = ssthresh
-void handle_new_ACK(struct sendq *q){
+// if in slow start, inc cwnd by 1
+// else if in congestion avoidance, inc cwnd by 1/cwnd
+// else if in fast recovery, cwnd = ssthresh
+void handle_new_ACK(struct sendq *q) {
+    float f = 0;
     q->dupACKs = 0;
-    if (q->state == 0){
-        q->cwnd += 1; 
-    }
-    else if (q->state == 1){
-        q->cwnd += 1; //should be 1/cwnd TODO
-    }
-    else if (q->state == 2){
+    if (q->state == 0) {
+        q->cwnd += 1;
+    } else if (q->state == 1) {
+        f += 1.0 / q->cwnd;
+        if (f >= 1) {
+            q->cwnd++;
+            f = 0;
+        }
+    } else if (q->state == 2) {
         q->cwnd = q->ssthresh;
         q->state = 1;
     }
 }
 
-//if in FR, inc cwnd by 1
-//else inc dupACKs and check if it's == 3
-//if 3 dupACKs and not in FR, return true 
-bool handle_dup_ACK(struct sendq *q){
-    if (q->state == 2){
-        q->cwnd += 1; 
+// if in FR, inc cwnd by 1
+// else inc dupACKs and check if it's == 3
+// if 3 dupACKs and not in FR, return true
+bool handle_dup_ACK(struct sendq *q) {
+    if (q->state == 2) {
+        q->cwnd += 1;
         return false;
-    }
-    else{
-        q->dupACKs++; 
-        if (q->dupACKs == 3){
+    } else {
+        q->dupACKs++;
+        if (q->dupACKs == 3) {
             q->state = 2;
-            int temp = q->ssthresh; 
-            q->ssthresh = q->cwnd/2;
-            q->cwnd = temp + 3; 
+            q->ssthresh = q->cwnd / 2;
+            q->cwnd = q->ssthresh + 3;
             return true;
         }
     }
     return false;
 }
 
-
-atomic_size_t get_cwnd(struct sendq *q){
+atomic_size_t get_cwnd(struct sendq *q) {
     return q->cwnd;
 }
 
@@ -107,7 +107,7 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
         memcpy(q->slot->packet.payload + q->bytes_written, src, rem_capacity);
         q->slot->packet_size = sizeof(struct packet);
         q->seqnum += rem_capacity;
-        
+
         sendq_flush_end(q, false);
 
         if (size > rem_capacity)
@@ -118,10 +118,10 @@ void sendq_fill_end(struct sendq *q, const char *src, size_t size) {
 bool sendq_flush_end(struct sendq *q, bool final) {
     if (!q->slot)
         return false;
-    
+
     if (final)
         q->slot->packet.flags = FLAG_FINAL;
-    
+
     q->slot = NULL;
     q->end++;
     q->num_queued++;
@@ -165,7 +165,7 @@ size_t sendq_pop(struct sendq *q, uint32_t acknum) {
 }
 
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
-    if (q->send_next == q->begin + q->cwnd || q->send_next == q->end) {
+    if (q->send_next >= q->begin + q->cwnd || q->send_next == q->end) {
         return false;
     }
 
