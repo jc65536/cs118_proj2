@@ -170,10 +170,10 @@ size_t recvbuf_write_holes(struct recvbuf *b, char *dest, size_t size) {
     bool hole = false;
     for (size_t i = b->acknum; i < b->end && bytes_written + sizeof(seqnum_t) <= size; i++) {
         const struct recvbuf_slot *slot = recvbuf_get_slot(b, i);
-        if (slot->filled != hole) {
+        if (!slot->filled != hole) {
             *(seqnum_t *) (dest + bytes_written) = i;
             bytes_written += sizeof(seqnum_t);
-            hole = slot->filled;
+            hole = !slot->filled;
         }
     }
     return bytes_written;
