@@ -128,13 +128,6 @@ bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
     return cont(&slot->packet, slot->packet_size);
 }
 
-const struct packet *sendq_oldest_packet(const struct sendq *q) {
-    if (q->in_flight == 0)
-        return NULL;
-    else
-        return &sendq_get_slot(q, q->begin)->packet;
-}
-
 void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
     if (hills_len == 0)
         return;

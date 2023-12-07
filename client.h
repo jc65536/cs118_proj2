@@ -44,10 +44,6 @@ size_t sendq_get_in_flight(struct sendq *q);
 
 void sendq_retrans_holes(struct sendq *q, struct retransq *retransq);
 
-/* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
- */
-const struct packet *sendq_oldest_packet(const struct sendq *q);
-
 uint32_t sendq_get_ssthresh(struct sendq *q);
 size_t sendq_get_cwnd(struct sendq *q);
 void sendq_set_cwnd(struct sendq *q, size_t cwnd);
