@@ -49,5 +49,5 @@ comp-test: comp-test.o compression.o
 clean:
 	rm -f server client comp-test output.txt project2.zip *.o
 
-zip: $(sources) $(headers) Makefile README
+zip: $(sources) $(headers) Makefile report.txt
 	zip project2.zip $(filter-out comp%,$^)

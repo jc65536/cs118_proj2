@@ -18,8 +18,8 @@ struct sendq *sendq_new();
  */
 bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *));
 
-/* If possible, pop packets from q until acknum. Returns the remaining number of
- * in-flight packets (number of packets sent but not ACKed).
+/* If possible, pop packets from q until acknum. Returns the number of packets
+ * popped.
  */
 size_t sendq_pop(struct sendq *q, seqnum_t acknum);
 
@@ -35,6 +35,8 @@ bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
                          bool (*cont)(const struct packet *, size_t));
 
 void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len);
+
+size_t sendq_get_in_flight(struct sendq *q);
 
 /* Returns the oldest in-flight packet or NULL if there are no in-flight packets.
  */

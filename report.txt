@@ -1,2 +1,12 @@
-Please concisely describe your congestion control scheme here.
-No need to be verbose, brief descriptions/bullet points are preferred.
+Our congestion control mostly follows TCP congestion control. We implemented
+slow start, congestion avoidance, fast retransmission, fast recovery, and
+retransmission timeout.
+
+We also added a feature where ACKs could enumerate ranges of missing packets
+(called "holes" in the code). This way, when the client performs retransmission,
+a whole interval of packets can be retransmitted at once, which saves a lot of
+timeout intervals.
+
+Furthermore, the holes feature allows us to implement a sort of selective ACK,
+which can help save some time since we can partially ACK ranges of packets
+rather than waiting for the cumulative ACK.

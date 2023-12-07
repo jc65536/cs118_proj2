@@ -79,16 +79,14 @@ bool sendq_write(struct sendq *q, bool (*write)(struct packet *, size_t *)) {
 }
 
 size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
-    // Round up
-    if (acknum <= q->begin || q->send_next < acknum) {
-        DBG(debug_sendq(format("sendq can't pop %d", acknum), q));
-        return q->in_flight;
-    }
+    if (acknum <= q->begin)
+        acknum = q->begin;
+    
+    if (q->send_next < acknum)
+        acknum = q->send_next;
 
     while (acknum < q->send_next && sendq_get_slot(q, acknum)->sacked)
         acknum++;
-
-    DBG(printf("Consumed %d sacks\n", acknum - old_acknum));
 
     size_t num_popped = acknum - q->begin;
 
@@ -97,7 +95,7 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
     q->num_queued -= num_popped;
 
     DBG(debug_sendq(format("Received ack %d", acknum), q));
-    return q->in_flight;
+    return num_popped;
 }
 
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
@@ -123,6 +121,10 @@ bool sendq_lookup_seqnum(const struct sendq *q, seqnum_t seqnum,
         return false;
 
     const struct sendq_slot *slot = sendq_get_slot(q, seqnum);
+
+    if (slot->sacked)
+        return false;
+
     return cont(&slot->packet, slot->packet_size);
 }
 
@@ -153,6 +155,10 @@ void sendq_sack(struct sendq *q, const seqnum_t *hills, size_t hills_len) {
         sendq_get_slot(q, i)->sacked = true;
 
     sendq_sack(q, hills + 2, hills_len - 2);
+}
+
+size_t sendq_get_in_flight(struct sendq *q) {
+    return q->in_flight;
 }
 
 struct retransq {

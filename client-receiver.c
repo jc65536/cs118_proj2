@@ -77,24 +77,21 @@ void *receive_acks(struct receiver_args *args) {
 
         if (holes_len >= 3)
             sendq_sack(sendq, holes + 1, holes_len - 1);
-
+        
         log_ack(packet->seqnum);
 
-        if (packet->seqnum > acknum) {
+        const size_t num_popped = sendq_pop(sendq, packet->seqnum);
+
+        if (num_popped) {
             // We received an ack for new data, so we can pop the packets in our
             // buffer until the latest acknum
 
             dupcount = 0;
 
-            // sendq_pop returns the number of in-flight packets (packets sent
-            // but not yet acked). If this number is 0, we can disarm the timer.
-            if (sendq_pop(sendq, packet->seqnum) == 0)
-                unset_timer(timer);
-            else
+            if (sendq_get_in_flight(sendq))
                 set_timer(timer);
-
-            // Update acknum to the latest acknum
-            acknum = packet->seqnum;
+            else
+                unset_timer(timer);
 
             switch (state) {
             case SLOW_START:
@@ -113,10 +110,6 @@ void *receive_acks(struct receiver_args *args) {
                 break;
             }
         } else {
-#ifdef DEBUG
-            printf("Received ack %d\n", packet->seqnum);
-#endif
-
             dupcount++;
             if (dupcount == 3) {
 #ifdef DEBUG
