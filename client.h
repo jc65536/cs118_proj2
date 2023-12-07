@@ -59,7 +59,7 @@ bool retransq_push(struct retransq *q, seqnum_t seqnum);
  */
 bool retransq_pop(struct retransq *q, bool (*cont)(seqnum_t));
 
-extern seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
+extern seqnum_t *holes;
 extern size_t holes_len;
 
 void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len);

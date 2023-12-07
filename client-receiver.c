@@ -4,7 +4,7 @@
 #include "client.h"
 #include "rto.h"
 
-seqnum_t holes[MAX_PAYLOAD_SIZE / sizeof(seqnum_t)];
+seqnum_t *holes;
 size_t holes_len;
 
 enum trans_state state = SLOW_START;
@@ -13,8 +13,6 @@ void retrans_holes(struct retransq *q, seqnum_t *holes, size_t holes_len) {
     if (holes_len < 2)
         return;
     
-    printf("Queuing hole %d..%d\n", holes[0], holes[1]);
-
     for (seqnum_t i = holes[0]; i < holes[1]; i++)
         retransq_push(q, i);
     
@@ -57,6 +55,9 @@ void *receive_acks(struct receiver_args *args) {
 
     int dupcount = 0;
 
+    holes = malloc(MAX_PAYLOAD_SIZE);
+    seqnum_t *holes_ = malloc(MAX_PAYLOAD_SIZE);
+
     while (true) {
         ssize_t bytes_recvd = recv(listen_sockfd, packet, sizeof(struct packet), 0);
 
@@ -65,7 +66,13 @@ void *receive_acks(struct receiver_args *args) {
             continue;
         }
 
-        memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
+        memcpy(holes_, packet->payload, bytes_recvd - HEADER_SIZE);
+
+        // Swap so we're not changing holes as someone else is reading it
+        seqnum_t *tmp = holes;
+        holes = holes_;
+        holes_ = tmp;
+
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
 
         if (holes_len >= 3)

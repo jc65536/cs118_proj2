@@ -85,12 +85,10 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
         return q->in_flight;
     }
 
-    seqnum_t old_acknum = acknum;
-
     while (acknum < q->send_next && sendq_get_slot(q, acknum)->sacked)
         acknum++;
 
-    printf("Consumed %d sacks\n", acknum - old_acknum);
+    DBG(printf("Consumed %d sacks\n", acknum - old_acknum));
 
     size_t num_popped = acknum - q->begin;
 
