@@ -56,10 +56,6 @@ size_t sendq_inc_cwnd(struct sendq *q) {
     return q->cwnd++;
 }
 
-size_t sendq_get_in_flight(const struct sendq *q) {
-    return q->in_flight;
-}
-
 struct sendq_slot *sendq_get_slot(const struct sendq *q, size_t i) {
     return &q->buf[i % SENDQ_CAPACITY];
 }
@@ -99,7 +95,7 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
     q->num_queued -= num_popped;
 
     DBG(debug_sendq(format("Received ack %d", acknum), q));
-    return num_popped;
+    return q->in_flight;
 }
 
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {

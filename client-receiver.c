@@ -65,7 +65,7 @@ void *receive_acks(struct receiver_args *args) {
 
         log_ack(packet->seqnum);
 
-        sendq_pop(sendq, packet->seqnum);
+        size_t in_flight = sendq_pop(sendq, packet->seqnum);
 
         if (packet->seqnum > acknum) {
             // We received an ack for new data, so we can pop the packets in our
@@ -74,7 +74,7 @@ void *receive_acks(struct receiver_args *args) {
             dupcount = 0;
             acknum = packet->seqnum;
 
-            if (sendq_get_in_flight(sendq))
+            if (in_flight)
                 set_timer(timer);
             else
                 unset_timer(timer);
