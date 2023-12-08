@@ -41,7 +41,6 @@ struct packet {
 };
 
 bool is_final(const struct packet *p);
-bool should_ack(const struct packet *p);
 
 #ifdef DEBUG
 const char *format(const char *fmt, ...);

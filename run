@@ -1,8 +1,26 @@
 #!/bin/bash
 
-make clean
-make comp-test
-./comp-test input.txt > /dev/null
-# grep -E "^Encode" debug.txt > encode.txt
-# grep -E "^Decode" debug.txt > decode.txt
-diff --brief input.txt decoded.txt
+cleanup() {
+    kill $proxy_pid
+    kill $server_pid
+    kill $client_pid
+}
+
+trap cleanup EXIT INT TERM
+
+make clean default
+
+python rdcc_proxy.py -t "$1" > /dev/null &
+proxy_pid=$!
+
+sleep 0.1
+
+./server > ignore/server.log &
+server_pid=$!
+
+sleep 0.1
+
+./client "$2" &
+client_pid=$!
+
+wait $server_pid

@@ -12,7 +12,7 @@
 volatile struct timespec rto = (struct timespec){.tv_sec = RTO_LB / S_TO_NS, .tv_nsec = RTO_LB % S_TO_NS};
 
 static int consecutive_doubling = 0;
-bool lossy_link = false;
+volatile bool lossy_link = false;
 
 static bool flag = false;
 static struct timespec tspec;

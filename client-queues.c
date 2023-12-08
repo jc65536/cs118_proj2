@@ -168,12 +168,14 @@ void sendq_retrans_holes(const struct sendq *q, struct retransq *retransq) {
 bool sendq_auto_retrans(const struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
     static struct timespec last_t;
 
+    if (lossy_link || q->num_queued == 0)
+        return false;
+
     struct timespec t;
     clock_gettime(CLOCK_REALTIME, &t);
 
     uint64_t rto_ = to_uint(rto);
     uint64_t dt = to_uint(t) - to_uint(last_t);
-    last_t = t;
 
     if (dt > rto_ / 4) {
         struct sendq_slot *slot = sendq_get_slot(q, q->begin);
@@ -181,6 +183,10 @@ bool sendq_auto_retrans(const struct sendq *q, bool (*cont)(const struct packet 
         slot->packet.flags |= FLAG_NOACK;
         cont(&slot->packet, slot->packet_size);
         slot->packet.flags &= ~FLAG_NOACK;
+
+        last_t = t;
+
+        DBG(debug_sendq(format("Auto retransmit %d", slot->packet.seqnum), q));
         return true;
     }
 
@@ -206,7 +212,7 @@ bool retransq_push(struct retransq *q, const struct sendq_slot *slot) {
     q->end++;
     q->num_queued++;
 
-    DBG(debug_retransq(format("Queued retransmit %d", slot), q));
+    DBG(debug_retransq(format("Queued retransmit %d", slot->packet.seqnum), q));
     return true;
 }
 

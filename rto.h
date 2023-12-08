@@ -9,6 +9,7 @@
 #define S_TO_NS ((uint64_t) 1000000000)
 
 extern volatile struct timespec rto;
+extern volatile bool lossy_link;
 
 void log_send(seqnum_t seqnum);
 void log_ack(seqnum_t acknum);
