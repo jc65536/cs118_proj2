@@ -28,7 +28,7 @@
 
 typedef void *(*voidfn)(void *);
 
-typedef uint16_t seqnum_t;
+typedef uint32_t seqnum_t;
 
 #define HEADER_SIZE (sizeof(seqnum_t) + sizeof(uint8_t))
 #define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - HEADER_SIZE)
