@@ -1,5 +1,3 @@
-DEBUG = 1
-
 CC = gcc
 
 LDFLAGS = -lrt
