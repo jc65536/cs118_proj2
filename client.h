@@ -42,9 +42,9 @@ bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t
 
 void sendq_sack(struct sendq *q, const volatile seqnum_t *hills, size_t hills_len);
 
-size_t sendq_get_in_flight(const struct sendq *q);
-
 void sendq_retrans_holes(const struct sendq *q, struct retransq *retransq);
+
+bool sendq_auto_retrans(const struct sendq *q, bool (*cont)(const struct packet *, size_t));
 
 uint32_t sendq_get_ssthresh(const struct sendq *q);
 size_t sendq_get_cwnd(const struct sendq *q);

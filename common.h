@@ -17,6 +17,7 @@
 #define MAX_PACKET_SIZE 1200
 
 #define FLAG_FINAL 0b00000001
+#define FLAG_NOACK 0b00000010
 
 #ifdef DEBUG
 #define DBG(x) (x)
@@ -40,6 +41,7 @@ struct packet {
 };
 
 bool is_final(const struct packet *p);
+bool should_ack(const struct packet *p);
 
 #ifdef DEBUG
 const char *format(const char *fmt, ...);

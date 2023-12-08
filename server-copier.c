@@ -8,7 +8,10 @@ static struct ackq *ackq;
 
 void copy_one(const struct packet *p, size_t packet_size) {
     size_t payload_size = packet_size - HEADER_SIZE;
-    ackq_push(ackq, recvbuf_push(recvbuf, p, payload_size));
+    seqnum_t acknum = recvbuf_push(recvbuf, p, payload_size);
+
+    if (should_ack(p))
+        ackq_push(ackq, acknum);
 }
 
 void *copy_packets(struct copier_args *args) {

@@ -6,6 +6,10 @@ bool is_final(const struct packet *p) {
     return p->flags & FLAG_FINAL;
 }
 
+bool should_ack(const struct packet *p) {
+    return !(p->flags & FLAG_NOACK);
+}
+
 #ifdef DEBUG
 const char *format(const char *fmt, ...) {
     static char buf[512];

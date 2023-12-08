@@ -2,6 +2,7 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "client.h"
@@ -162,6 +163,28 @@ void sendq_retrans_holes(const struct sendq *q, struct retransq *retransq) {
                 retransq_push(retransq, slot);
         }
     }
+}
+
+bool sendq_auto_retrans(const struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
+    static struct timespec last_t;
+
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+
+    uint64_t rto_ = to_uint(rto);
+    uint64_t dt = to_uint(t) - to_uint(last_t);
+    last_t = t;
+
+    if (dt > rto_ / 4) {
+        struct sendq_slot *slot = sendq_get_slot(q, q->begin);
+
+        slot->packet.flags |= FLAG_NOACK;
+        cont(&slot->packet, slot->packet_size);
+        slot->packet.flags &= ~FLAG_NOACK;
+        return true;
+    }
+
+    return false;
 }
 
 struct retransq {

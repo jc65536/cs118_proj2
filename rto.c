@@ -23,6 +23,14 @@ uint64_t abs_diff(uint64_t x, uint64_t y) {
     return x < y ? y - x : x - y;
 }
 
+uint64_t to_uint(struct timespec t) {
+    return t.tv_sec * S_TO_NS + t.tv_nsec;
+}
+
+struct timespec to_tspec(uint64_t t) {
+    return (struct timespec) {.tv_sec = t / S_TO_NS, .tv_nsec = t % S_TO_NS};
+}
+
 void log_send(seqnum_t seqnum) {
     if (lossy_link || flag)
         return;
@@ -42,7 +50,7 @@ void log_ack(seqnum_t acknum) {
 
     struct timespec endspec = {};
     clock_gettime(CLOCK_REALTIME, &endspec);
-    uint64_t rtt = (endspec.tv_sec - tspec.tv_sec) * S_TO_NS + (endspec.tv_nsec - tspec.tv_nsec);
+    uint64_t rtt = to_uint(endspec) - to_uint(tspec);
 
     if (srtt == 0) {
         srtt = rtt;
@@ -57,8 +65,7 @@ void log_ack(seqnum_t acknum) {
     if (rto_ < RTO_LB)
         rto_ = RTO_LB;
 
-    rto.tv_sec = rto_ / S_TO_NS;
-    rto.tv_nsec = rto_ % S_TO_NS;
+    rto = to_tspec(rto_);
     consecutive_doubling = 0;
 
 #ifdef DEBUG
@@ -82,11 +89,7 @@ void double_rto() {
         return;
     }
 
-    uint64_t rto_ = rto.tv_sec * S_TO_NS + rto.tv_nsec;
-    rto_ *= 2;
-    rto.tv_sec = rto_ / S_TO_NS;
-    rto.tv_nsec = rto_ % S_TO_NS;
-
+    rto = to_tspec(to_uint(rto) * 2);
     flag = false;
     consecutive_doubling++;
 }
