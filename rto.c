@@ -89,7 +89,7 @@ void double_rto() {
         return;
     }
 
-    rto = to_tspec(to_uint(rto) * 2);
+    // rto = to_tspec(to_uint(rto) * 2);
     flag = false;
     consecutive_doubling++;
 }
