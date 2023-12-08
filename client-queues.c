@@ -204,7 +204,7 @@ bool retransq_pop(struct retransq *q, bool (*cont)(const struct packet *, size_t
     q->begin++;
     q->num_queued--;
 
-    DBG(debug_retransq(format("Retransmitted %d", seqnum), q));
+    DBG(debug_retransq(format("Retransmitted %d", slot->packet.seqnum), q));
     return true;
 }
 

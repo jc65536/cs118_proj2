@@ -29,7 +29,7 @@ cleanup
 
 export DEBUG=1
 
-make clean default > /dev/null 2>&1
+make clean default
 
 python rdcc_proxy.py -t cc > /dev/null &
 proxy_pid=$!

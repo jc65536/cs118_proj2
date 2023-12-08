@@ -73,16 +73,20 @@ void double_rto() {
     if (lossy_link)
         return;
 
-    if (consecutive_doubling == 2) {
+    if (consecutive_doubling == 1) {
 #ifdef DEBUG
         printf("Lossy link detected!!\n");
 #endif
-        rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 20};
+        rto = (struct timespec){.tv_sec = 0, .tv_nsec = S_TO_NS / 10};
         lossy_link = true;
         return;
     }
 
+    uint64_t rto_ = rto.tv_sec * S_TO_NS + rto.tv_nsec;
+    rto_ *= 2;
+    rto.tv_sec = rto_ / S_TO_NS;
+    rto.tv_nsec = rto_ % S_TO_NS;
+
     flag = false;
-    srtt = rttvar = 0;
     consecutive_doubling++;
 }

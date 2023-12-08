@@ -34,8 +34,6 @@ void *receive_acks(struct receiver_args *args) {
         exit(1);
     }
 
-    printf("Connected to proxy (recv)\n");
-
     struct packet *packet = malloc(sizeof(struct packet));
     holes = malloc(MAX_PAYLOAD_SIZE);
     seqnum_t *holes_ = malloc(MAX_PAYLOAD_SIZE);

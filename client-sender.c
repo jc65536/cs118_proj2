@@ -49,8 +49,6 @@ void *send_packets(struct sender_args *args) {
         exit(1);
     }
 
-    printf("Connected to proxy (send)\n");
-
     while (true)
         (void) (retransq_pop(retransq, send_one) || sendq_send_next(sendq, send_one));
 }
