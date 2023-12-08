@@ -14,11 +14,7 @@
 #define CLIENT_PORT 6001
 #define SERVER_PORT 6002
 #define CLIENT_PORT_TO 5001
-#define MAX_PAYLOAD_SIZE 1195
-#define WINDOW_SIZE 5
-#define MAX_SEQUENCE 1024
-
-#define NUM_THREADS 4
+#define MAX_PACKET_SIZE 1200
 
 #define FLAG_FINAL 0b00000001
 
@@ -32,15 +28,16 @@
 
 typedef void *(*voidfn)(void *);
 
-typedef uint32_t seqnum_t;
+typedef uint16_t seqnum_t;
+
+#define HEADER_SIZE (sizeof(seqnum_t) + sizeof(uint8_t))
+#define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - HEADER_SIZE)
 
 struct packet {
     seqnum_t seqnum;
     uint8_t flags;
     char payload[MAX_PAYLOAD_SIZE];
 };
-
-#define HEADER_SIZE (offsetof(struct packet, payload))
 
 bool is_final(const struct packet *p);
 

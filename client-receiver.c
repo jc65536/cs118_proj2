@@ -62,7 +62,7 @@ void *receive_acks(struct receiver_args *args) {
 
         if (holes_len >= 3)
             sendq_sack(sendq, holes + 1, holes_len - 1);
-        
+
         log_ack(packet->seqnum);
 
         sendq_pop(sendq, packet->seqnum);
@@ -85,7 +85,7 @@ void *receive_acks(struct receiver_args *args) {
                     state = CONGESTION_AVOIDANCE;
                 break;
             case CONGESTION_AVOIDANCE:
-                if (acknum - last_acknum >= sendq_get_cwnd(sendq)) {
+                if ((unsigned) (acknum - last_acknum) >= sendq_get_cwnd(sendq)) {
                     sendq_inc_cwnd(sendq);
                     last_acknum = acknum;
                 }
