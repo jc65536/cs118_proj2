@@ -17,7 +17,6 @@
 #define MAX_PACKET_SIZE 1200
 
 #define FLAG_FINAL 0b00000001
-#define FLAG_NOACK 0b00000010
 
 #ifdef DEBUG
 #define DBG(x) (x)

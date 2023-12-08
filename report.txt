@@ -10,6 +10,3 @@ timeout intervals.
 Furthermore, the holes feature allows us to implement a sort of selective ACK,
 which can help save some time since we can partially ACK ranges of packets
 rather than waiting for the cumulative ACK.
-
-We also have an auto-retransmit feature where if cwnd is full, we will
-automatically retransmit a packet up to 4 times before RTO.

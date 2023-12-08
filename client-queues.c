@@ -100,7 +100,7 @@ size_t sendq_pop(struct sendq *q, seqnum_t acknum) {
 }
 
 bool sendq_send_next(struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
-    if (q->send_next >= q->begin + q->cwnd || q->send_next == q->end)
+    if (q->in_flight >= q->cwnd || q->send_next == q->end)
         return false;
 
     const struct sendq_slot *slot = sendq_get_slot(q, q->send_next);
@@ -165,34 +165,6 @@ void sendq_retrans_holes(const struct sendq *q, struct retransq *retransq) {
     }
 }
 
-bool sendq_auto_retrans(const struct sendq *q, bool (*cont)(const struct packet *, size_t)) {
-    static struct timespec last_t;
-
-    if (lossy_link || q->num_queued == 0)
-        return false;
-
-    struct timespec t;
-    clock_gettime(CLOCK_REALTIME, &t);
-
-    uint64_t rto_ = to_uint(rto);
-    uint64_t dt = to_uint(t) - to_uint(last_t);
-
-    if (dt > rto_ / 4) {
-        struct sendq_slot *slot = sendq_get_slot(q, q->begin);
-
-        slot->packet.flags |= FLAG_NOACK;
-        cont(&slot->packet, slot->packet_size);
-        slot->packet.flags &= ~FLAG_NOACK;
-
-        last_t = t;
-
-        DBG(debug_sendq(format("Auto retransmit %d", slot->packet.seqnum), q));
-        return true;
-    }
-
-    return false;
-}
-
 struct retransq {
     atomic_size_t num_queued;
     atomic_size_t begin;
@@ -235,8 +207,21 @@ bool retransq_pop(struct retransq *q, bool (*cont)(const struct packet *, size_t
 
 #ifdef DEBUG
 void debug_sendq(const char *str, const struct sendq *q) {
-    printf("[sendq] %-32s  begin %6ld  end %6ld  send_next %6ld  num_queued %6ld  in_flight %6ld  cwnd %6ld\n",
-           str, q->begin, q->end, q->send_next, q->num_queued, q->in_flight, q->cwnd);
+    char *state_str;
+    switch (state) {
+        case SLOW_START:
+            state_str = "SS";
+            break;
+        case CONGESTION_AVOIDANCE:
+            state_str = "CA";
+            break;
+        case FAST_RECOVERY:
+            state_str = "FR";
+            break;
+    }
+
+    printf("[sendq : %s] %-32s  begin %6ld  end %6ld  send_next %6ld  num_queued %6ld  in_flight %6ld  cwnd %6ld\n",
+           state_str, str, q->begin, q->end, q->send_next, q->num_queued, q->in_flight, q->cwnd);
 }
 #endif
 
