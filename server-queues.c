@@ -4,12 +4,6 @@
 
 #include "server.h"
 
-/* Performance (% of time)
- * recvbuf_take_begin   60.99
- * ackq_pop             15.64
- * recvq_pop            14.08
- */
-
 struct recvq {
     atomic_size_t num_queued;
     atomic_size_t begin;
@@ -57,9 +51,6 @@ struct recvbuf {
     atomic_size_t begin;
     atomic_size_t end;
     atomic_size_t acknum;
-    size_t bytes_read;
-    struct recvbuf_slot *slot;
-    bool final_read;
 
     struct recvbuf_slot {
         struct packet packet;
@@ -79,17 +70,17 @@ struct recvbuf_slot *recvbuf_get_slot(const struct recvbuf *b, size_t i) {
     return b->buf + i % RECVBUF_CAPACITY;
 }
 
-void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
+seqnum_t recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size) {
     if (p->seqnum < b->acknum || b->end + b->rwnd <= p->seqnum) {
         DBG(debug_recvbuf(format("Out of bounds %d", p->seqnum), b));
-        return;
+        return b->acknum;
     }
 
     struct recvbuf_slot *slot = recvbuf_get_slot(b, p->seqnum);
 
     if (slot->filled) {
         DBG(debug_recvbuf(format("Duplicate %d", p->seqnum), b));
-        return;
+        return b->acknum;
     }
 
     memcpy(&slot->packet, p, HEADER_SIZE + payload_size);
@@ -113,13 +104,12 @@ void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size
 
     DBG(debug_recvbuf(format("Received %d", p->seqnum), b));
 
-    return;
+    return b->acknum;
 }
 
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t)) {
-    if (b->begin == b->acknum) {
+    if (b->begin == b->acknum)
         return false;
-    }
 
     struct recvbuf_slot *slot = recvbuf_get_slot(b, b->begin);
     slot->filled = false;
@@ -132,37 +122,6 @@ bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t))
 
     DBG(debug_recvbuf("Wrote", b));
     return true;
-}
-
-size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size) {
-    if (b->final_read)
-        return 0;
-
-    while (!b->slot) {
-        if (b->begin < b->acknum) {
-            b->slot = recvbuf_get_slot(b, b->begin);
-            b->bytes_read = 0;
-        }
-    }
-
-    if (b->bytes_read + size < b->slot->payload_size) {
-        memcpy(dest, b->slot->packet.payload + b->bytes_read, size);
-        b->bytes_read += size;
-        return size;
-    } else {
-        size_t rem_capacity = b->slot->payload_size - b->bytes_read;
-        memcpy(dest, b->slot->packet.payload + b->bytes_read, rem_capacity);
-        b->final_read = is_final(&b->slot->packet);
-        b->slot->filled = false;
-        b->slot = NULL;
-        b->begin++;
-        b->rwnd++;
-        return rem_capacity;
-    }
-}
-
-seqnum_t recvbuf_get_acknum(const struct recvbuf *b) {
-    return b->acknum;
 }
 
 size_t recvbuf_write_holes(struct recvbuf *b, char *dest, size_t size) {
@@ -191,9 +150,8 @@ struct ackq *ackq_new() {
 }
 
 bool ackq_push(struct ackq *q, seqnum_t acknum) {
-    if (q->num_queued == ACKQ_CAPACITY) {
+    if (q->num_queued == ACKQ_CAPACITY)
         return false;
-    }
 
     q->buf[q->end % ACKQ_CAPACITY] = acknum;
 
@@ -205,9 +163,8 @@ bool ackq_push(struct ackq *q, seqnum_t acknum) {
 }
 
 bool ackq_pop(struct ackq *q, bool (*cont)(seqnum_t)) {
-    if (q->num_queued == 0) {
+    if (q->num_queued == 0)
         return false;
-    }
 
     seqnum_t acknum = q->buf[q->begin % ACKQ_CAPACITY];
 

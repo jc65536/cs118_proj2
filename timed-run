@@ -1,6 +1,7 @@
 #!/bin/bash
 
 cleanup() {
+    kill $proxy_pid
     kill -- -$server_pid
     kill $client_pid
 }
@@ -9,14 +10,39 @@ trap cleanup EXIT INT TERM
 
 make clean default
 
-set -m
+python rdcc_proxy.py -t cc > /dev/null &
+proxy_pid=$!
+
+sleep 0.1
 
 time ./server > /dev/null &
 server_pid=$!
 
 sleep 0.1
 
-./client "$1" &
+./client "$1" > /dev/null &
 client_pid=$!
 
 wait $server_pid
+
+cleanup
+
+export DEBUG=1
+
+make clean default > /dev/null 2>&1
+
+python rdcc_proxy.py -t cc > /dev/null &
+proxy_pid=$!
+
+sleep 0.1
+
+time ./server > /dev/null &
+server_pid=$!
+
+sleep 0.1
+
+./client "$1" > /dev/null &
+client_pid=$!
+
+wait $server_pid
+

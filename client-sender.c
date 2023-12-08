@@ -25,11 +25,6 @@ bool send_one(const struct packet *p, size_t packet_size) {
     return true;
 }
 
-bool send_seqnum(seqnum_t n) {
-    sendq_lookup_seqnum(sendq, n, send_one);
-    return true;
-}
-
 void *send_packets(struct sender_args *args) {
     sendq = args->sendq;
     struct retransq *retransq = args->retransq;
@@ -57,9 +52,5 @@ void *send_packets(struct sender_args *args) {
     printf("Connected to proxy (send)\n");
 
     while (true)
-        (void) (retransq_pop(retransq, send_seqnum) || sendq_send_next(sendq, send_one));
-
-    printf("Sent last packet\n");
-
-    return NULL;
+        (void) (retransq_pop(retransq, send_one) || sendq_send_next(sendq, send_one));
 }

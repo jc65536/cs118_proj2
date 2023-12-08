@@ -7,8 +7,7 @@ static FILE *fp;
 static bool write_done;
 
 bool write_one(const struct packet *p, size_t payload_size) {
-    if (is_final(p))
-        write_done = true;
+    write_done = is_final(p);
 
     size_t bytes_written = fwrite(p->payload, sizeof(char), payload_size, fp);
 
@@ -20,7 +19,7 @@ bool write_one(const struct packet *p, size_t payload_size) {
     return true;
 }
 
-void *decompress_and_write(struct writer_args *args) {
+void *write_file(struct writer_args *args) {
     recvbuf = args->recvbuf;
 
     // Open the target file for writing (always write to output.txt)
@@ -29,8 +28,6 @@ void *decompress_and_write(struct writer_args *args) {
     while (!write_done)
         recvbuf_pop(recvbuf, write_one);
 
-    printf("Wrote last packet\n");
     fclose(fp);
-    exit(0);
     return NULL;
 }

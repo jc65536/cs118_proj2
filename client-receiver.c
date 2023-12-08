@@ -4,10 +4,10 @@
 #include "client.h"
 #include "rto.h"
 
-seqnum_t *holes;
-size_t holes_len;
+volatile seqnum_t *holes;
+volatile size_t holes_len;
 
-enum trans_state state = SLOW_START;
+volatile enum trans_state state = SLOW_START;
 
 void *receive_acks(struct receiver_args *args) {
     struct sendq *sendq = args->sendq;
@@ -38,6 +38,7 @@ void *receive_acks(struct receiver_args *args) {
 
     struct packet *packet = malloc(sizeof(struct packet));
     holes = malloc(MAX_PAYLOAD_SIZE);
+    seqnum_t *holes_ = malloc(MAX_PAYLOAD_SIZE);
 
     // acknum is always set to the largest acknum we have received from the
     // server. Represents how many bytes we know the server has received.
@@ -54,8 +55,12 @@ void *receive_acks(struct receiver_args *args) {
             continue;
         }
 
-        memcpy(holes, packet->payload, bytes_recvd - HEADER_SIZE);
+        memcpy(holes_, packet->payload, bytes_recvd - HEADER_SIZE);
         holes_len = (bytes_recvd - HEADER_SIZE) / sizeof(seqnum_t);
+
+        seqnum_t *tmp = (seqnum_t *) holes;
+        holes = holes_;
+        holes_ = tmp;
 
         if (holes_len >= 3)
             sendq_sack(sendq, holes + 1, holes_len - 1);
@@ -118,6 +123,4 @@ void *receive_acks(struct receiver_args *args) {
             }
         }
     }
-
-    return NULL;
 }

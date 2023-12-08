@@ -8,8 +8,7 @@ static struct ackq *ackq;
 
 void copy_one(const struct packet *p, size_t packet_size) {
     size_t payload_size = packet_size - HEADER_SIZE;
-    recvbuf_push(recvbuf, p, payload_size);
-    ackq_push(ackq, recvbuf_get_acknum(recvbuf));
+    ackq_push(ackq, recvbuf_push(recvbuf, p, payload_size));
 }
 
 void *copy_packets(struct copier_args *args) {
@@ -19,6 +18,4 @@ void *copy_packets(struct copier_args *args) {
 
     while (true)
         recvq_pop(recvq, copy_one);
-
-    return NULL;
 }

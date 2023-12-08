@@ -41,9 +41,6 @@ void *receive_packets(struct receiver_args *args) {
 
     printf("Connected to proxy (recv)\n");
 
-    while (true) {
+    while (true)
         recvq_write(recvq, receive_one);
-    }
-
-    return NULL;
 }

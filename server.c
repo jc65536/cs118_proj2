@@ -28,21 +28,25 @@ int main() {
     timer_settime(ptimer, 0, &itspec, NULL);
 #endif
 
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    // pthread_attr_setschedpolicy(&attr, SCHED_RR);
+    // struct sched_param param = {1};
+    // pthread_attr_setschedparam(&attr, &param);
+
     pthread_t receiver_thread, copier_thread, writer_thread, sender_thread;
 
     struct receiver_args receiver_args = {recvq};
-    pthread_create(&receiver_thread, NULL, (voidfn) receive_packets, &receiver_args);
+    pthread_create(&receiver_thread, &attr, (voidfn) receive_packets, &receiver_args);
 
     struct copier_args copier_args = {recvq, recvbuf, ackq};
-    pthread_create(&copier_thread, NULL, (voidfn) copy_packets, &copier_args);
+    pthread_create(&copier_thread, &attr, (voidfn) copy_packets, &copier_args);
 
     struct writer_args writer_args = {recvbuf};
-    pthread_create(&writer_thread, NULL, (voidfn) decompress_and_write, &writer_args);
+    pthread_create(&writer_thread, &attr, (voidfn) write_file, &writer_args);
 
     struct sender_args sender_args = {ackq, recvbuf};
-    pthread_create(&sender_thread, NULL, (voidfn) send_acks, &sender_args);
+    pthread_create(&sender_thread, &attr, (voidfn) send_acks, &sender_args);
 
-    pthread_join(copier_thread, NULL);
     pthread_join(writer_thread, NULL);
-    // pthread_join(sender_thread, NULL);
 }

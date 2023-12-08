@@ -15,9 +15,6 @@ bool read_packet(struct packet *p, size_t *packet_size) {
         if (feof(fp)) {
             p->flags = FLAG_FINAL;
             read_done = true;
-        } else {
-            perror("Error reading file");
-            return false;
         }
     } else {
         p->flags = 0;
@@ -29,7 +26,7 @@ bool read_packet(struct packet *p, size_t *packet_size) {
     return true;
 }
 
-void *read_and_compress(struct reader_args *args) {
+void *read_file(struct reader_args *args) {
     sendq = args->sendq;
     const char *filename = args->filename;
 
@@ -40,11 +37,9 @@ void *read_and_compress(struct reader_args *args) {
         exit(1);
     }
 
-    printf("Opened file %s\n", filename);
-
     while (!read_done)
         sendq_write(sendq, read_packet);
 
-    printf("Finished reading file\n");
+    fclose(fp);
     return NULL;
 }

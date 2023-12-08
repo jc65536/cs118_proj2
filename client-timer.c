@@ -3,7 +3,7 @@
 #include "client.h"
 #include "rto.h"
 
-bool timer_set = false;
+volatile bool timer_set = false;
 
 void handle_timer(union sigval args) {
     struct timer_args *targs = (struct timer_args *) args.sival_ptr;

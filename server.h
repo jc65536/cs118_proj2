@@ -20,10 +20,8 @@ bool recvq_pop(struct recvq *q, void (*cont)(const struct packet *, size_t));
 struct recvbuf;
 
 struct recvbuf *recvbuf_new();
-void recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
+seqnum_t recvbuf_push(struct recvbuf *b, const struct packet *p, size_t payload_size);
 bool recvbuf_pop(struct recvbuf *b, bool (*cont)(const struct packet *, size_t));
-seqnum_t recvbuf_get_acknum(const struct recvbuf *b);
-size_t recvbuf_take_begin(struct recvbuf *b, char *dest, size_t size);
 size_t recvbuf_write_holes(struct recvbuf *b, char *dest, size_t size);
 
 struct ackq;
@@ -61,7 +59,7 @@ struct profiler_args {
 
 void *receive_packets(struct receiver_args *args);
 void *copy_packets(struct copier_args *args);
-void *decompress_and_write(struct writer_args *args);
+void *write_file(struct writer_args *args);
 void *send_acks(struct sender_args *args);
 
 // Debug utils

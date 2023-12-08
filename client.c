@@ -54,18 +54,22 @@ int main(int argc, char *argv[]) {
     timer_settime(ptimer, 0, &itspec, NULL);
 #endif
 
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    // pthread_attr_setschedpolicy(&attr, SCHED_RR);
+    // struct sched_param param = {1};
+    // pthread_attr_setschedparam(&attr, &param);
+
     pthread_t reader_thread, sender_thread, receiver_thread;
 
     struct reader_args reader_args = {sendq, filename};
-    pthread_create(&reader_thread, NULL, (voidfn) read_and_compress, &reader_args);
+    pthread_create(&reader_thread, &attr, (voidfn) read_file, &reader_args);
 
     struct sender_args sender_args = {sendq, retransq, timer};
-    pthread_create(&sender_thread, NULL, (voidfn) send_packets, &sender_args);
+    pthread_create(&sender_thread, &attr, (voidfn) send_packets, &sender_args);
 
     struct receiver_args receiver_args = {sendq, retransq, timer};
-    pthread_create(&receiver_thread, NULL, (voidfn) receive_acks, &receiver_args);
+    pthread_create(&receiver_thread, &attr, (voidfn) receive_acks, &receiver_args);
 
-    pthread_join(reader_thread, NULL);
     pthread_join(sender_thread, NULL);
-    pthread_join(receiver_thread, NULL);
 }
